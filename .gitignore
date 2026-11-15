@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# LaTeX (o PDF final, relatorio/main.pdf, entra no repositório)
+relatorio/*.aux
+relatorio/*.log
+relatorio/*.out
+relatorio/*.fls
+relatorio/*.fdb_latexmk
+relatorio/*.blg
+relatorio/*.synctex.gz
