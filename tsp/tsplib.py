@@ -197,6 +197,42 @@ def _explicit_matrix(n: int, fmt: str, w: list[float]) -> np.ndarray:
 
 
 # --------------------------------------------------------------------------
+# Coordenadas para as features geométricas
+# --------------------------------------------------------------------------
+
+def geo_to_plane(c: np.ndarray) -> np.ndarray:
+    """GEO (lat, lon em GRAUS.MINUTOS) -> plano por projeção equiretangular.
+
+    Usada só para geometria (fecho convexo, bounding box, entropia); a
+    distância do problema continua sendo a GEO oficial.
+    """
+    rad = _geo_radians(c)
+    lat, lon = rad[:, 0], rad[:, 1]
+    x = lon * np.cos(lat.mean())
+    y = lat
+    return np.degrees(np.column_stack([x, y]))
+
+
+def classical_mds(D: np.ndarray, dim: int = 2) -> tuple[np.ndarray, float]:
+    """MDS clássico (Torgerson): coordenadas 2D cujas distâncias aproximam D.
+
+    Usado nas instâncias EXPLICIT sem coordenadas (gr17, gr21, gr24, fri26,
+    swiss42...). Devolve as coordenadas e a fração da "energia" explicada
+    pelas 2 dimensões (1.0 = D é exatamente euclidiana em 2D).
+    """
+    n = D.shape[0]
+    J = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * J @ (D ** 2) @ J
+    vals, vecs = np.linalg.eigh(B)
+    order = np.argsort(vals)[::-1]
+    vals, vecs = vals[order], vecs[:, order]
+    pos = np.clip(vals[:dim], 0, None)
+    coords = vecs[:, :dim] * np.sqrt(pos)
+    quality = float(pos.sum() / np.clip(vals, 0, None).sum())
+    return coords, quality
+
+
+# --------------------------------------------------------------------------
 # API pública
 # --------------------------------------------------------------------------
 
@@ -238,11 +274,13 @@ def load_instance(path: str | Path) -> Instance:
 
     display = sections.get("DISPLAY_DATA_SECTION")
     if node_c is not None:
-        coords, source = node_c, "node_coord"
+        coords = geo_to_plane(node_c) if ewt == "GEO" else node_c
+        source = "node_coord"
     elif display:
         coords, source = _coords_from_section(display, n), "display_data"
     else:
-        coords, source = np.zeros((n, 2)), "none"
+        coords, _ = classical_mds(D)
+        source = "mds"
 
     return Instance(name=name, n=n, edge_weight_type=ewt, D=D,
                     coords=coords, coords_source=source,
