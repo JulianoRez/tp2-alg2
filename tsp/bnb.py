@@ -58,7 +58,7 @@ from .mst import mst_without_each_vertex, prim, tree_degrees
 from .tsplib import tour_cost
 
 BOUNDS = ("twomin", "onetree", "hk")
-SEARCHES = ("dfs",)
+SEARCHES = ("dfs", "best")
 CHILD_ORDERS = ("bound", "index")
 
 
@@ -258,6 +258,54 @@ class BranchAndBound:
             self.path.pop()
             self.visited[c] = False
 
+    # ----------------------------------------------------- best-first
+    def _best_first(self):
+        """Best-first: sempre expande o nó aberto de menor LB."""
+        n = self.n
+        tie = itertools.count()
+        heap = [(self.root_lb, 0, next(tie), 0.0, 0.0, (0,))]
+        visited = np.zeros(n, dtype=bool)
+        while heap:
+            lb, negdepth, _, cost_d, cost_w, path = heapq.heappop(heap)
+            depth = -negdepth
+            if self._prunable(lb):
+                self.pruned += 1 + len(heap)
+                self.pruned_by_depth[depth] += 1
+                for item in heap:
+                    self.pruned_by_depth[-item[1]] += 1
+                heap.clear()
+                break
+            self._check_time()
+            visited[:] = False
+            visited[list(path)] = True
+            R = np.flatnonzero(~visited)
+            last = path[-1]
+            if R.size == 1:
+                c = int(R[0])
+                self.leaves += 1
+                self._update_incumbent(cost_d + self.D[last, c] + self.D[c, 0],
+                                       list(path) + [c])
+                continue
+            self.expanded += 1
+            self.expanded_by_depth[depth] += 1
+            self.max_depth = max(self.max_depth, depth)
+            lbs = self._child_bounds(last, R, cost_d, cost_w)
+            self.generated += R.size
+            for k, c in enumerate(R):
+                c = int(c)
+                if self._prunable(lbs[k]):
+                    self.pruned += 1
+                    self.pruned_by_depth[depth + 1] += 1
+                    continue
+                heapq.heappush(heap, (lbs[k], -(depth + 1), next(tie),
+                                      cost_d + self.D[last, c],
+                                      cost_w + self.W[last, c],
+                                      path + (c,)))
+            self.max_open = max(self.max_open, len(heap))
+            if len(heap) > self.max_open_cap:
+                raise _Stop("memout")
+        self.open_at_end = len(heap)
+
     # ---------------------------------------------------------- solve
     def solve(self, initial_tour: list[int] | None = None) -> dict:
         n = self.n
@@ -289,11 +337,13 @@ class BranchAndBound:
                     self._update_incumbent(float(tour_cost(self.D, list(range(n)))), list(range(n)))
             elif self._prunable(self.root_lb):
                 self.pruned += 1
-            else:
+            elif self.search == "dfs":
                 self.visited = np.zeros(n, dtype=bool)
                 self.visited[0] = True
                 self.path = [0]
                 self._dfs(0, 0, 0.0, 0.0)
+            else:
+                self._best_first()
         except _Stop as stop:
             status = stop.reason
         now = perf_counter()
