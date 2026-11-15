@@ -142,9 +142,14 @@ def dist_att(c: np.ndarray) -> np.ndarray:
 
 
 def _geo_radians(c: np.ndarray) -> np.ndarray:
-    """Converte coordenadas GEO (formato GRAUS.MINUTOS) para radianos."""
+    """Converte coordenadas GEO (formato GRAUS.MINUTOS) para radianos.
+
+    A parte inteira é truncada (o "nint" da documentação, na prática, é
+    truncamento: é assim que os ótimos publicados foram calculados, conferido
+    em tests/test_all.py com ulysses16/ulysses22/burma14).
+    """
     pi = 3.141592
-    deg = _nint(c)
+    deg = np.trunc(c)
     minutes = c - deg
     return pi * (deg + 5.0 * minutes / 3.0) / 180.0
 
@@ -208,7 +213,8 @@ def load_instance(path: str | Path) -> Instance:
     header, sections = _parse(path)
     n = int(header["DIMENSION"])
     ewt = header.get("EDGE_WEIGHT_TYPE", "").upper()
-    name = header.get("NAME", instance_name(path)).strip()
+    # alguns arquivos (ulysses16/22) trazem NAME com extensão: normalizamos
+    name = instance_name(Path(header.get("NAME", path.name).strip()))
 
     node = sections.get("NODE_COORD_SECTION")
     node_c = _coords_from_section(node, n) if node else None
