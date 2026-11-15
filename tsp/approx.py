@@ -86,6 +86,32 @@ def blossom_matching(D: np.ndarray, odd: np.ndarray,
     return [(int(odd[u]), int(odd[v])) for u, v in M]
 
 
+def greedy_matching(D: np.ndarray, odd: np.ndarray,
+                    prof: Profiler | None = None) -> list[tuple[int, int]]:
+    """Emparelhamento guloso: pares em ordem crescente de distância.
+
+    O(k^2 log k), mas SEM garantia de mínimo -> Christofides perde a garantia
+    de 1.5. Serve para medir o trade-off tempo x qualidade do matching.
+    """
+    prof = prof or NullProfiler()
+    with prof.section("matching_solve"):
+        k = len(odd)
+        sub = D[np.ix_(odd, odd)]
+        iu, ju = np.triu_indices(k, 1)
+        order = np.argsort(sub[iu, ju], kind="stable")
+        matched = bytearray(k)
+        pairs = []
+        odd_l = odd.tolist()
+        # listas Python no laço: indexar arrays NumPy elemento a elemento é lento
+        for u, v in zip(iu[order].tolist(), ju[order].tolist()):
+            if not matched[u] and not matched[v]:
+                matched[u] = matched[v] = 1
+                pairs.append((odd_l[u], odd_l[v]))
+                if len(pairs) == k // 2:
+                    break
+    return pairs
+
+
 def eulerian_circuit(n: int, edges: list[tuple[int, int]], start: int = 0) -> list[int]:
     """Algoritmo de Hierholzer (iterativo) em multigrafo, O(V + E).
 
@@ -124,14 +150,20 @@ def shortcut(circuit: list[int], n: int) -> list[int]:
     return tour
 
 
-def christofides(D: np.ndarray, prof: Profiler | None = None) -> list[int]:
+def christofides(D: np.ndarray, prof: Profiler | None = None,
+                 matching: str = "blossom") -> list[int]:
     prof = prof or NullProfiler()
     n = D.shape[0]
     with prof.section("mst"):
         parent, _ = prim(D, root=0)
     with prof.section("odd_vertices"):
         odd = odd_degree_vertices(parent)
-    pairs = blossom_matching(D, odd, prof)
+    if matching == "blossom":
+        pairs = blossom_matching(D, odd, prof)
+    elif matching == "greedy":
+        pairs = greedy_matching(D, odd, prof)
+    else:
+        raise ValueError(f"matching desconhecido: {matching}")
     with prof.section("euler"):
         edges = [(int(parent[v]), v) for v in range(n) if parent[v] >= 0] + pairs
         circuit = eulerian_circuit(n, edges, start=0)
