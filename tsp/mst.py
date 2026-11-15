@@ -58,3 +58,39 @@ def tree_degrees(parent: np.ndarray) -> np.ndarray:
     deg[mask] += 1
     np.add.at(deg, parent[mask], 1)
     return deg
+
+
+def mst_without_each_vertex(S: np.ndarray) -> np.ndarray:
+    """Para cada vértice c de S, peso da MST do grafo S sem o vértice c.
+
+    S: m x m com diagonal = +inf. Roda m Prims em lote com NumPy.
+    """
+    m = S.shape[0]
+    if m <= 2:
+        return np.zeros(m)
+    return _batched_prim_without(S, np.arange(m))
+
+
+def _batched_prim_without(S: np.ndarray, removed: np.ndarray) -> np.ndarray:
+    """MST de S - {removed[k]} para cada k, com os Prims rodando em lote.
+
+    key[k, v]: aresta mais barata de v até a árvore do problema k.
+    pen[k, v] = inf se v já está na árvore do problema k ou foi removido.
+    """
+    m = S.shape[0]
+    p = removed.size
+    rows = np.arange(p)
+    start = np.where(removed == 0, 1, 0)     # problema k começa no 0 (ou no 1 se removeu o 0)
+    key = S[start].copy()
+    pen = np.zeros((p, m))
+    pen[rows, removed] = np.inf
+    pen[rows, start] = np.inf
+    key += pen
+    total = np.zeros(p)
+    for _ in range(m - 2):
+        j = key.argmin(axis=1)               # próximo vértice de cada problema
+        total += key[rows, j]
+        pen[rows, j] = np.inf
+        np.minimum(key, S[j], out=key)       # relaxamento com a linha do vértice novo
+        key += pen                           # (inf + x = inf mantém os já usados fora)
+    return total
