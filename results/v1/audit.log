@@ -1,0 +1,46 @@
+children_mst m=  5 sequential t=     89.5us
+children_mst m=  5 batched    t=     35.4us
+children_mst m= 10 sequential t=    259.6us
+children_mst m= 10 batched    t=     46.4us
+children_mst m= 20 sequential t=   1081.9us
+children_mst m= 20 batched    t=    103.2us
+children_mst m= 40 sequential t=   4102.1us
+children_mst m= 40 batched    t=    218.9us
+children_mst m= 70 sequential t=  13436.2us
+children_mst m= 70 batched    t=    658.6us
+approx gr24         naive_tatt           t=  0.0004s mem=    0.13 MiB
+approx gr24         tatt                 t=  0.0001s mem=    0.01 MiB
+approx gr24         naive_christofides   t=  0.0019s mem=    0.21 MiB
+approx gr24         christofides         t=  0.0009s mem=    0.05 MiB
+approx att48        naive_tatt           t=  0.0015s mem=    0.46 MiB
+approx att48        tatt                 t=  0.0002s mem=    0.01 MiB
+approx att48        naive_christofides   t=  0.0101s mem=    0.68 MiB
+approx att48        christofides         t=  0.0076s mem=    0.18 MiB
+approx st70         naive_tatt           t=  0.0029s mem=    0.90 MiB
+approx st70         tatt                 t=  0.0003s mem=    0.02 MiB
+approx st70         naive_christofides   t=  0.0172s mem=    1.11 MiB
+approx st70         christofides         t=  0.0091s mem=    0.23 MiB
+approx random200    naive_tatt           t=  0.0272s mem=    7.78 MiB
+approx random200    tatt                 t=  0.0007s mem=    0.03 MiB
+approx random200    naive_christofides   t=  0.1921s mem=    7.78 MiB
+approx random200    christofides         t=  0.1241s mem=    1.09 MiB
+approx random500    naive_tatt           t=  0.1964s mem=   48.94 MiB
+approx random500    tatt                 t=  0.0035s mem=    0.07 MiB
+approx random500    naive_christofides   t=  3.3005s mem=   48.94 MiB
+approx random500    christofides         t=  2.4720s mem=    8.86 MiB
+bnb burma14    naive_bestfirst_twomin   optimal  exp=   483642 t=   19.11s mem=   103.0 MiB
+bnb burma14    bestfirst_twomin         optimal  exp=   237333 t=    8.12s mem=   122.2 MiB
+bnb burma14    dfs_twomin               optimal  exp=   278533 t=    7.25s mem=     0.0 MiB
+bnb burma14    dfs_onetree              optimal  exp=     7772 t=    0.51s mem=     0.0 MiB
+bnb burma14    dfs_hk                   optimal  exp=       12 t=    0.01s mem=     0.0 MiB
+bnb ulysses16  naive_bestfirst_twomin   timeout  exp=   419292 t=   61.85s mem=   174.6 MiB
+bnb ulysses16  bestfirst_twomin         memout   exp=   311106 t=    8.23s mem=   601.1 MiB
+bnb ulysses16  dfs_twomin               timeout  exp=  4194694 t=   60.00s mem=     0.0 MiB
+bnb ulysses16  dfs_onetree              timeout  exp=  1904774 t=   60.00s mem=     0.0 MiB
+bnb ulysses16  dfs_hk                   optimal  exp=       14 t=    0.01s mem=     0.0 MiB
+bnb gr17       naive_bestfirst_twomin   timeout  exp=   625006 t=   60.92s mem=   194.4 MiB
+bnb gr17       bestfirst_twomin         memout   exp=   419819 t=    9.88s mem=   562.0 MiB
+bnb gr17       dfs_twomin               timeout  exp=  4560311 t=   60.00s mem=     0.0 MiB
+bnb gr17       dfs_onetree              optimal  exp=   293064 t=   11.43s mem=     0.0 MiB
+bnb gr17       dfs_hk                   optimal  exp=       15 t=    0.00s mem=     0.0 MiB
+-> results/audit.csv
