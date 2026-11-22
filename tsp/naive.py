@@ -65,11 +65,17 @@ def _naive_bound(D, path, n):
     return math.ceil(total / 2)
 
 
-def naive_bnb(D: np.ndarray, time_limit: float = 60.0, max_open: int = 5_000_000) -> dict:
+def naive_bnb(D: np.ndarray, time_limit: float = 60.0, max_open: int = 2_000_000,
+              initial_tour: list[int] | None = None) -> dict:
+    """`initial_tour` e `max_open` iguais aos da versão refatorada na auditoria,
+    para que a comparação isole as refatorações (e não o warm-start)."""
     D = D.tolist()            # lista de listas, como o código bruto costuma fazer
     n = len(D)
     t0 = time.perf_counter()
     best_cost, best_path = math.inf, None
+    if initial_tour is not None:
+        best_path = list(initial_tour)
+        best_cost = sum(D[best_path[i]][best_path[(i + 1) % n]] for i in range(n))
     heap = [(_naive_bound(D, [0], n), 0, [0])]
     expanded = generated = pruned = max_open_seen = leaves = 0
     status = "optimal"
