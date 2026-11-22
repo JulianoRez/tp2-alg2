@@ -64,13 +64,16 @@ def warmstart_table(bnb: pd.DataFrame) -> pd.DataFrame:
     keys = ["instance", "n", "bound", "child_order"]
     exp = bnb.pivot_table(index=keys, columns="start", values="nodes_expanded",
                           aggfunc="first", observed=False)
+    pru = bnb.pivot_table(index=keys, columns="start", values="nodes_pruned",
+                          aggfunc="first", observed=False)
     tim = bnb.pivot_table(index=keys, columns="start", values="time_total",
                           aggfunc="first", observed=False)
     exp.columns = [f"expandidos_{s}" for s in exp.columns]
+    pru.columns = [f"podados_{s}" for s in pru.columns]
     tim.columns = [f"tempo_s_{s}" for s in tim.columns]
     unfinished = bnb[bnb.status != "optimal"].astype({"start": str})
     to = (unfinished.groupby(keys)["start"].agg(", ".join).rename("sem_terminar"))
-    w = exp.join(tim).join(to).reset_index()
+    w = exp.join(pru).join(tim).join(to).reset_index()
     w["sem_terminar"] = w["sem_terminar"].astype(object).fillna("")
     return w.sort_values(["bound", "child_order", "n", "instance"])
 
@@ -85,7 +88,7 @@ def heuristics_table(runs: pd.DataFrame) -> pd.DataFrame:
 
 
 SECTIONS = ["mst", "preorder", "odd_vertices", "matching_build", "matching_solve",
-            "euler", "shortcut", "nn", "hull"]
+            "euler", "shortcut", "nn", "hull", "hull_fecho", "hull_insercao", "trivial"]
 
 
 def time_mem_columns(df: pd.DataFrame) -> list[str]:
@@ -157,7 +160,7 @@ def main():
         a["mem_peak_mib"] = a.pop("mem_peak") / MIB
         tables["7_auditoria"] = a
     for name, df in tables.items():
-        df.to_csv(OUT / f"{name}.csv", index=False)
+        df.to_csv(OUT / f"{name}.csv", index=False, na_rep="NA")
         print(f"{name:16s} {len(df):4d} linhas x {df.shape[1]:3d} colunas")
 
 

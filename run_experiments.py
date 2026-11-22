@@ -43,7 +43,7 @@ from tsp.features import instance_features
 from tsp.tsplib import find_instance, load_instance
 
 KEY_FIELDS = ("instance", "algo", "start", "bound", "search", "child_order",
-              "matching", "gc_enabled")
+              "matching", "gc_enabled", "time_limit")
 LIST_FIELDS = ("expanded_by_depth", "pruned_by_depth", "ub_history", "time_total_all")
 
 
@@ -81,6 +81,8 @@ def job_cmd(job: dict, args) -> list[str]:
     if job["algo"] == "bnb":
         cmd += ["--start", job["start"], "--bound", job["bound"], "--search", job["search"],
                 "--child-order", job["child_order"], "--time-limit", str(args.time_limit)]
+        if args.trace_memory:
+            cmd += ["--trace-memory", "--mem-time-limit", str(args.mem_time_limit)]
     else:
         cmd += ["--reps", str(args.reps), "--trace-memory"]
         if job["matching"]:
@@ -121,7 +123,11 @@ def write_features(instances: list[str], args, out: Path) -> dict[str, int]:
         inst = load_instance(find_instance(name, args.data_dir))
         rows.append(instance_features(inst))
         sizes[name] = inst.n
-    pd.DataFrame(rows).sort_values("n").to_csv(out, index=False)
+    new = pd.DataFrame(rows)
+    if out.exists():
+        old = pd.read_csv(out)
+        new = pd.concat([old[~old.instance.isin(new.instance)], new], ignore_index=True)
+    new.sort_values("n").to_csv(out, index=False)
     print(f"features de {len(rows)} instâncias -> {out}")
     return sizes
 
@@ -131,7 +137,7 @@ def build_csv(jsonl: Path, csv: Path):
     registro; custo de execução sem ótimo (timeout) sai como NA."""
     if not jsonl.exists():
         return
-    rows = []
+    rows = {}
     with jsonl.open() as f:
         for line in f:
             if not line.strip():
@@ -141,8 +147,8 @@ def build_csv(jsonl: Path, csv: Path):
             for k in LIST_FIELDS:
                 if k in rec:
                     rec[k] = json.dumps(rec[k])
-            rows.append(rec)
-    pd.DataFrame(rows).to_csv(csv, index=False)
+            rows[key_of(rec)] = rec
+    pd.DataFrame(list(rows.values())).to_csv(csv, index=False, na_rep="NA")
     print(f"{len(rows)} execuções -> {csv}")
 
 
@@ -168,6 +174,9 @@ def main():
     ap.add_argument("--no-bnb", action="store_true")
     ap.add_argument("--no-heuristics", action="store_true")
     ap.add_argument("--no-gc", action="store_true", help="roda tudo com gc desligado")
+    ap.add_argument("--trace-memory", action="store_true",
+                    help="B&B: execução extra curta com tracemalloc (pico de memória)")
+    ap.add_argument("--mem-time-limit", type=float, default=30.0)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--csv-only", action="store_true")
     ap.add_argument("--data-dir", default="data")
