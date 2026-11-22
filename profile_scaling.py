@@ -21,22 +21,29 @@ do GC são contadas só dentro da janela cronometrada.
 """
 from __future__ import annotations
 
-import argparse
-import gc
-import statistics
-import tracemalloc
-from pathlib import Path
-from time import perf_counter
+import os
 
-import numpy as np
-import pandas as pd
+# 1 thread por biblioteca numérica: a medição é de um algoritmo sequencial e
+# threads extras do BLAS só adicionariam ruído (precisa vir antes do NumPy).
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_v, "1")
 
-from tsp.approx import christofides, twice_around_the_tree
-from tsp.bnb import BranchAndBound
-from tsp.heuristics import convex_hull_insertion_tour, nearest_neighbor_tour
-from tsp.mst import prim
-from tsp.profiler import Profiler
-from tsp.tsplib import dist_euc_2d, tour_cost
+import argparse  # noqa: E402
+import gc  # noqa: E402
+import statistics  # noqa: E402
+import tracemalloc  # noqa: E402
+from pathlib import Path  # noqa: E402
+from time import perf_counter, process_time  # noqa: E402
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+
+from tsp.approx import christofides, twice_around_the_tree  # noqa: E402
+from tsp.bnb import BranchAndBound, held_karp_bound, one_tree  # noqa: E402
+from tsp.heuristics import convex_hull_insertion_tour, nearest_neighbor_tour  # noqa: E402
+from tsp.mst import prim  # noqa: E402
+from tsp.profiler import Profiler  # noqa: E402
+from tsp.tsplib import dist_euc_2d, tour_cost  # noqa: E402
 
 
 def random_instance(n: int, seed: int):
@@ -62,7 +69,7 @@ def algorithms(P, D):
 
 def _hull(prof, D, P):
     with prof.section("hull"):
-        return convex_hull_insertion_tour(D, P)
+        return convex_hull_insertion_tour(D, P, prof)
 
 
 def gc_count() -> int:
@@ -72,18 +79,22 @@ def gc_count() -> int:
 def profile_one(fn, reps: int) -> dict:
     """1 execução de aquecimento + `reps` cronometradas (mediana) + 1 com
     tracemalloc. Coletas do GC contadas só dentro da janela cronometrada."""
-    times, sections, tour = [], {}, None
-    gc0 = gc_count()
+    times, cpu, sections, tour, gc_auto = [], [], {}, None, 0
+    fn(Profiler())                                   # aquecimento (descartado)
     for _ in range(reps):
         prof = Profiler()
         gc.collect()
-        t0 = perf_counter()
+        gc0 = gc_count()
+        c0, t0 = process_time(), perf_counter()
         tour = fn(prof)
         times.append(perf_counter() - t0)
+        cpu.append(process_time() - c0)
+        gc_auto += gc_count() - gc0
         for k, v in prof.times.items():
             sections.setdefault(k, []).append(v)
     out = {"time_total": statistics.median(times), "time_total_min": min(times),
-           "gc_collections": (gc_count() - gc0) / reps, "tour": tour}
+           "cpu_time_total": statistics.median(cpu),
+           "gc_collections": gc_auto / reps, "tour": tour}
     out.update({f"time_{k}": statistics.median(v) for k, v in sections.items()})
     prof = Profiler(trace_memory=True)
     gc.collect()
@@ -109,6 +120,8 @@ def main():
     ap.add_argument("--bnb-sizes", nargs="*", type=int, default=[])
     ap.add_argument("--bnb-time", type=float, default=300.0)
     ap.add_argument("--bnb-bound", default="hk")
+    ap.add_argument("--bnb-mem-time", type=float, default=20.0,
+                    help="limite (s) da execução extra do B&B com tracemalloc")
     ap.add_argument("--no-gc", action="store_true")
     ap.add_argument("--out", default="results/scaling.csv")
     args = ap.parse_args()
@@ -136,16 +149,42 @@ def main():
         for seed in args.seeds:
             P, D = random_instance(n, seed)
             tour0 = nearest_neighbor_tour(D)
+            gc.collect()
+            gc0 = gc_count()
+            c0 = process_time()
             res = BranchAndBound(D, bound=args.bnb_bound, time_limit=args.bnb_time).solve(tour0)
+            cpu = process_time() - c0
+            gcs = gc_count() - gc0
+            # memória: execução separada e curta sob tracemalloc (a DFS atinge
+            # o pico O(n^2) no 1º mergulho); o limite na raiz é medido à parte
+            gc.collect()
+            tracemalloc.start()
+            if args.bnb_bound == "hk":
+                held_karp_bound(D)
+            elif args.bnb_bound == "onetree":
+                Dinf = D.astype(float)
+                np.fill_diagonal(Dinf, np.inf)
+                one_tree(Dinf)
+            mem_root = tracemalloc.get_traced_memory()[1]
+            tracemalloc.stop()
+            gc.collect()
+            tracemalloc.start()
+            BranchAndBound(D, bound=args.bnb_bound,
+                           time_limit=min(args.bnb_mem_time, args.bnb_time)).solve(tour0)
+            mem_bnb = tracemalloc.get_traced_memory()[1]
+            tracemalloc.stop()
             rows.append({"algo": f"bnb_{args.bnb_bound}", "n": n, "seed": seed,
                          "cost": res["cost"], "status": res["status"],
-                         "time_total": res["time_bnb"],
+                         "time_total": res["time_bnb"], "cpu_time_total": cpu,
                          "time_root_bound": res["time_root_bound"],
                          "time_child_bounds": res["time_child_bounds"],
                          "nodes_expanded": res["nodes_expanded"],
                          "nodes_pruned": res["nodes_pruned"],
                          "max_depth": res["max_depth"],
-                         "initial_ub": res["initial_ub"], "root_lb": res["root_lb"]})
+                         "initial_ub": res["initial_ub"], "root_lb": res["root_lb"],
+                         "gc_collections": gcs,
+                         "mem_peak_root_bound": mem_root, "mem_peak_bnb": mem_bnb,
+                         "gc_enabled": not args.no_gc})
             print(f"bnb_{args.bnb_bound:7s} n={n:5d} seed={seed} {res['status']:8s} "
                   f"t={res['time_bnb']:8.2f}s exp={res['nodes_expanded']}", flush=True)
 

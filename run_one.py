@@ -20,7 +20,7 @@ import resource
 import statistics
 import sys
 import tracemalloc
-from time import perf_counter
+from time import perf_counter, process_time
 
 import numpy as np
 
@@ -45,7 +45,7 @@ def build_tour(name: str, inst, prof: Profiler, matching: str = "blossom") -> li
             return nearest_neighbor_tour(D)
     if name == "hull":
         with prof.section("hull"):
-            return convex_hull_insertion_tour(D, inst.coords)
+            return convex_hull_insertion_tour(D, inst.coords, prof)
     if name == "tatt":
         return twice_around_the_tree(D, prof)
     if name == "christofides":
@@ -70,17 +70,18 @@ def run_heuristic(args, inst) -> dict:
     As coletas do GC são contadas só DENTRO da janela cronometrada: o
     gc.collect() que limpa o lixo antes de cada repetição fica de fora.
     """
-    totals, sections, tour = [], {}, None
-    gc0 = gc_collections()
+    totals, sections, tour, gc_auto = [], {}, None, 0
+    build_tour(args.algo, inst, Profiler(), args.matching)      # aquecimento
     for _ in range(args.reps):
         prof = Profiler()
         gc.collect()
+        gc0 = gc_collections()
         t0 = perf_counter()
         tour = build_tour(args.algo, inst, prof, args.matching)
         totals.append(perf_counter() - t0)
+        gc_auto += gc_collections() - gc0
         for k, v in prof.times.items():
             sections.setdefault(k, []).append(v)
-    gc_auto = gc_collections() - gc0
     out = {
         "status": "ok",
         "cost": inst.tour_cost(tour),
@@ -117,8 +118,9 @@ def run_bnb(args, inst) -> dict:
     execução curta já mede o pico. O RSS do processo não serve aqui: os
     ~170 MiB do interpretador + NumPy/SciPy/NetworkX escondem os KiB da DFS.
     """
+    gc.collect()
     gc0 = gc_collections()
-    t0 = perf_counter()
+    c0, t0 = process_time(), perf_counter()
     prof = Profiler()
     start_tour = build_tour(args.start, inst, prof, args.matching)
     t_heur = perf_counter() - t0
@@ -129,8 +131,38 @@ def run_bnb(args, inst) -> dict:
     res = bnb.solve(start_tour)
     res["time_heuristic"] = t_heur
     res["time_total"] = perf_counter() - t0
+    res["cpu_time_total"] = process_time() - c0
     res["gc_collections"] = gc_collections() - gc0
+    if args.trace_memory:
+        res.update(trace_bnb_memory(args, inst, start_tour))
     return res
+
+
+def trace_bnb_memory(args, inst, start_tour) -> dict:
+    """Pico de memória (tracemalloc) do limite na raiz e do B&B inteiro."""
+    from tsp.bnb import held_karp_bound, one_tree
+    gc.collect()
+    tracemalloc.start()
+    if args.bound == "hk":
+        held_karp_bound(inst.D)
+    elif args.bound == "onetree":
+        Dinf = inst.D.astype(float)
+        np.fill_diagonal(Dinf, np.inf)
+        one_tree(Dinf)
+    root_peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    gc.collect()
+    tracemalloc.start()
+    bnb = BranchAndBound(inst.D, bound=args.bound, search=args.search,
+                         child_order=args.child_order,
+                         time_limit=min(args.mem_time_limit, args.time_limit),
+                         max_open=args.max_open)
+    r = bnb.solve(start_tour)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    return {"mem_peak_root_bound": root_peak, "mem_peak_bnb": peak,
+            "mem_trace_status": r["status"], "mem_trace_nodes_expanded": r["nodes_expanded"],
+            "mem_trace_max_open": r["max_open"]}
 
 
 def main(argv=None) -> dict:
@@ -151,6 +183,8 @@ def main(argv=None) -> dict:
     ap.add_argument("--reps", type=int, default=5, help="repetições p/ heurísticas")
     ap.add_argument("--trace-memory", action="store_true",
                     help="execução extra com tracemalloc (pico por subrotina)")
+    ap.add_argument("--mem-time-limit", type=float, default=30.0,
+                    help="B&B: limite (s) da execução extra com tracemalloc")
     ap.add_argument("--no-gc", action="store_true", help="desliga o garbage collector")
     ap.add_argument("--data-dir", default="data")
     args = ap.parse_args(argv)
@@ -168,7 +202,8 @@ def main(argv=None) -> dict:
         "bound": args.bound if args.algo == "bnb" else None,
         "search": args.search if args.algo == "bnb" else None,
         "child_order": args.child_order if args.algo == "bnb" else None,
-        "matching": args.matching if args.algo == "christofides" else None,
+        "matching": (args.matching if args.algo == "christofides"
+                     or (args.algo == "bnb" and args.start == "christofides") else None),
         "time_limit": args.time_limit if args.algo == "bnb" else None,
         "gc_enabled": not args.no_gc,
         "known_opt": inst.known_opt,
