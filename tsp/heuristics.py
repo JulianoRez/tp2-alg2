@@ -34,7 +34,10 @@ def trivial_tour(n: int) -> list[int]:
 def nearest_neighbor_tour(D: np.ndarray, start: int = 0) -> list[int]:
     """A partir de `start`, vai sempre para o vizinho não visitado mais próximo."""
     n = D.shape[0]
-    dist = D.astype(float)
+    # np.asarray não copia se D já é float64. (A 1ª versão usava D.astype(float),
+    # que SEMPRE copia a matriz: o profiling de memória mostrou 7.7 MiB extras
+    # em n = 1000, contra O(n) necessários.)
+    dist = np.asarray(D, dtype=float)
     visited = np.zeros(n, dtype=bool)
     visited[start] = True
     tour = [start]
@@ -80,7 +83,7 @@ def convex_hull(points: np.ndarray) -> list[int]:
     return lower[:-1] + upper[:-1]
 
 
-def convex_hull_insertion_tour(D: np.ndarray, coords: np.ndarray) -> list[int]:
+def convex_hull_insertion_tour(D: np.ndarray, coords: np.ndarray, prof=None) -> list[int]:
     """Sub-rota inicial = fecho convexo; depois inserção mais barata (gulosa).
 
     A cada passo escolhe, entre todos os vértices ainda fora do tour e todas as
@@ -95,9 +98,13 @@ def convex_hull_insertion_tour(D: np.ndarray, coords: np.ndarray) -> list[int]:
     cada vértice com as 2 arestas novas, e só quem tinha (a, b) como melhor
     aresta precisa ser recalculado contra o tour inteiro.
     """
+    from .profiler import NullProfiler
+    prof = prof or NullProfiler()
     n = D.shape[0]
-    hull = convex_hull(coords)
-    return _cheapest_insertion(D, hull, n)
+    with prof.section("hull_fecho"):
+        hull = convex_hull(coords)
+    with prof.section("hull_insercao"):
+        return _cheapest_insertion(D, hull, n)
 
 
 def _cheapest_insertion(D: np.ndarray, hull: list[int], n: int) -> list[int]:
@@ -118,7 +125,7 @@ def _cheapest_insertion(D: np.ndarray, hull: list[int], n: int) -> list[int]:
 
     outside = np.flatnonzero(~in_tour)
     tails, heads = all_edges()
-    inc = D[np.ix_(outside, tails)] + D[np.ix_(outside, heads)] - D[tails, heads]
+    inc = D[outside[:, None], tails] + D[outside[:, None], heads] - D[tails, heads]
     best_inc = np.full(n, np.inf)
     best_tail = np.full(n, -1, dtype=np.int64)
     best_inc[outside] = inc.min(axis=1)
@@ -146,7 +153,7 @@ def _cheapest_insertion(D: np.ndarray, hull: list[int], n: int) -> list[int]:
         if stale.any():
             s = rest[stale]
             tails, heads = all_edges()
-            inc = D[np.ix_(s, tails)] + D[np.ix_(s, heads)] - D[tails, heads]
+            inc = D[s[:, None], tails] + D[s[:, None], heads] - D[tails, heads]
             best_inc[s] = inc.min(axis=1)
             best_tail[s] = tails[inc.argmin(axis=1)]
 

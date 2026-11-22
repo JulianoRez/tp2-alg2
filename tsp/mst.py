@@ -60,15 +60,49 @@ def tree_degrees(parent: np.ndarray) -> np.ndarray:
     return deg
 
 
-def mst_without_each_vertex(S: np.ndarray) -> np.ndarray:
+def mst_without_each_vertex(S: np.ndarray, leaf_shortcut: bool = False) -> np.ndarray:
     """Para cada vértice c de S, peso da MST do grafo S sem o vértice c.
 
-    S: m x m com diagonal = +inf. Roda m Prims em lote com NumPy.
+    É a subrotina mais cara do Branch-and-Bound: num nó com m vértices ainda
+    não visitados, cada um dos m filhos precisa da MST dos m-1 restantes.
+
+    1. Atalho das folhas (O(m^2) no total): calcula UMA MST T de S. Se c é
+       folha de T, então T - c é MST de S - c (se existisse árvore geradora
+       de S - c mais leve, somando a aresta de c teríamos uma árvore de S mais
+       leve que T). Logo MST(S - c) = peso(T) - peso da única aresta de c.
+    2. Vértices internos de T: removê-los parte a árvore, então rodamos o Prim
+       só para eles, todos "em paralelo" (_batched_prim_without): o laço
+       Python tem m-2 iterações e cada uma é uma operação NumPy sobre os
+       problemas. Custo O(k m^2) para k vértices internos, em vez de O(m^3).
+
+    S: m x m com diagonal = +inf. Devolve vetor de tamanho m.
+
+    Padrão: `leaf_shortcut=False` (Prim em lote para TODOS os vértices).
+    O atalho das folhas é assintoticamente melhor, mas medido (audit_naive.py,
+    experimento children_mst) ficou 1,3 a 2,1x MAIS LENTO para m <= 70: ele
+    exige um Prim extra com m iterações do interpretador, e nesse tamanho o
+    custo é dominado pelo número de iterações Python, não pela aritmética
+    (que o NumPy faz em microssegundos). Fica disponível para a auditoria.
     """
     m = S.shape[0]
-    if m <= 2:
+    if m <= 2:                       # sobra no máximo 1 vértice: MST vazia
         return np.zeros(m)
-    return _batched_prim_without(S, np.arange(m))
+    if not leaf_shortcut:
+        return _batched_prim_without(S, np.arange(m))
+    parent, total = prim(S)
+    deg = tree_degrees(parent)
+    out = np.empty(m)
+    leaves = np.flatnonzero(deg == 1)
+    # peso da única aresta de cada folha: (v, parent[v]); a raiz 0 pode ser folha,
+    # e aí a aresta dela é a do seu único filho
+    nb = parent[leaves].copy()
+    if nb.size and nb[0] == -1:              # leaves está ordenado: a raiz 0 vem primeiro
+        nb[0] = int(np.flatnonzero(parent == 0)[0])
+    out[leaves] = total - S[leaves, nb]
+    internal = np.flatnonzero(deg > 1)
+    if internal.size:
+        out[internal] = _batched_prim_without(S, internal)
+    return out
 
 
 def _batched_prim_without(S: np.ndarray, removed: np.ndarray) -> np.ndarray:
