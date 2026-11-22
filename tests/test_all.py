@@ -83,6 +83,23 @@ def test_prim_matches_scipy(seed):
     assert (parent >= 0).sum() == 39
 
 
+@pytest.mark.parametrize("seed", range(6))
+def test_mst_leaf_shortcut_matches_batched(seed):
+    from tsp.naive import sequential_children_mst
+    rng = np.random.default_rng(seed)
+    for m in (3, 4, 7, 15, 30):
+        if seed % 2:                                   # muitos empates: pontos numa grade
+            P = rng.integers(0, 4, (m, 2)).astype(float) + rng.integers(0, 2, (m, 1)) * 1e-9
+        else:
+            P = rng.uniform(0, 1, (m, 2))
+        S = np.sqrt(((P[:, None] - P[None]) ** 2).sum(-1))
+        np.fill_diagonal(S, np.inf)
+        a = mst_without_each_vertex(S, leaf_shortcut=True)
+        b = mst_without_each_vertex(S, leaf_shortcut=False)
+        c = np.array(sequential_children_mst(S))
+        assert np.allclose(a, b) and np.allclose(b, c)
+
+
 def test_mst_without_each_vertex():
     for m in range(2, 15):
         _, S = euclid(m, m, integer=False)
@@ -177,6 +194,33 @@ def test_bnb_matches_brute_force(seed):
                     # todo nó gerado foi podado, expandido ou é folha
                     assert r["nodes_generated"] == (r["nodes_pruned"] + r["nodes_expanded"]
                                                     + r["leaves"])
+                    # contagens por profundidade batem com os totais
+                    assert sum(r["pruned_by_depth"]) == r["nodes_pruned"]
+                    assert sum(r["expanded_by_depth"]) == r["nodes_expanded"]
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_bnb_non_integer_distances(seed):
+    """Com distâncias reais (sem arredondar) o B&B não pode arredondar a
+    incumbente: um tour de 10,4 virando 10 podaria o ótimo de 10,2."""
+    n = 5 + seed % 4
+    _, D = euclid(n, seed, integer=False)
+    opt = min(float(D[np.array((0,) + p), np.roll(np.array((0,) + p), -1)].sum())
+              for p in itertools.permutations(range(1, n)))      # sem arredondar
+    for bound in ("twomin", "onetree", "hk"):
+        for search in ("dfs", "best"):
+            r = BranchAndBound(D, bound, search).solve(nearest_neighbor_tour(D))
+            assert r["status"] == "optimal"
+            assert abs(r["cost"] - opt) < 1e-6
+
+
+def test_root_pruned_when_warm_start_is_optimal():
+    inst = load_instance(DATA / "ulysses16.tsp.gz")
+    opt_tour = load_tour(DATA / "ulysses16.opt.tour.gz")
+    r = BranchAndBound(inst.D, "hk").solve(opt_tour)
+    assert r["cost"] == inst.known_opt
+    if r["nodes_expanded"] == 0:                     # a raiz já provou o ótimo
+        assert r["nodes_pruned"] == 1 and r["pruned_by_depth"][0] == 1
 
 
 @pytest.mark.parametrize("name", ["burma14", "ulysses16", "gr17", "gr21",
@@ -206,6 +250,7 @@ def test_best_first_memory_cap():
     inst = load_instance(DATA / "gr17.tsp.gz")
     r = BranchAndBound(inst.D, "twomin", "best", max_open=1000).solve(trivial_tour(17))
     assert r["status"] == "memout"
+    assert r["open_at_end"] > 1000                  # nós abertos no momento da parada
 
 
 def test_naive_bnb_matches_optimum():
@@ -214,6 +259,7 @@ def test_naive_bnb_matches_optimum():
         _, D = euclid(7, seed)
         opt = brute_force(D)
         assert naive_bnb(D)["cost"] == opt
+        assert naive_bnb(D, initial_tour=nearest_neighbor_tour(D))["cost"] == opt
 
 
 # --------------------------------------------------------------- features
@@ -228,3 +274,18 @@ def test_features_ranges():
     assert f["mst_max_degree"] >= 2
 
 
+def test_clark_evans_detects_patterns():
+    """~1 em pontos uniformes, > 1 em grade, < 1 em aglomerados (com a
+    correção de borda; sem ela até instâncias agrupadas davam > 1)."""
+    from tsp.synthetic import make_instance
+    def ce(fam, seeds=range(4), n=50):
+        return np.mean([instance_features(make_instance(fam, n, s))["clark_evans"] for s in seeds])
+    assert 0.9 < ce("uniform") < 1.2
+    assert ce("grid") > 1.4
+    assert ce("cluster") < 0.85
+
+
+def test_heuristic_gc_count_excludes_forced_collections():
+    import run_one
+    rec = run_one.main(["burma14", "--algo", "trivial", "--reps", "3", "--data-dir", str(DATA)])
+    assert rec["gc_collections"] == 0
