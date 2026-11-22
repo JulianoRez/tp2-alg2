@@ -99,8 +99,18 @@ def instance_features(inst: Instance) -> dict:
     G = np.sqrt(((P[:, None, :] - P[None, :, :]) ** 2).sum(-1))
     np.fill_diagonal(G, np.inf)
     nn_geo = G.min(axis=1)
-    area = polygon_area(P[hull])
-    f["clark_evans"] = float(nn_geo.mean() / (0.5 * np.sqrt(area / n))) if area > 0 else np.nan
+    # Clark-Evans: distância média ao vizinho mais próximo / esperada sob
+    # distribuição uniforme (Poisson) na mesma região. <1 agrupado, ~1
+    # aleatório, >1 regular (grade). Com N pequeno, muitos pontos ficam na
+    # borda (sem vizinhos do lado de fora) e o índice sem correção fica
+    # inflado (com a área do fecho, todas as 15 instâncias davam > 1). Usamos
+    # a esperança com correção de borda de Donnelly (1978), deduzida para uma
+    # região RETANGULAR -- aqui o bounding box, de área A e perímetro L:
+    #     E[r] = 0,5 sqrt(A/n) + (0,0514 + 0,041/sqrt(n)) L/n.
+    # Em instâncias uniformes sintéticas isso dá ~1,1 (fecho sem correção: ~1,3).
+    area_bb, perim_bb = float(w * h), float(2 * (w + h))
+    esperado = 0.5 * np.sqrt(area_bb / n) + (0.0514 + 0.041 / np.sqrt(n)) * perim_bb / n
+    f["clark_evans"] = float(nn_geo.mean() / esperado) if area_bb > 0 else np.nan
     f["silhouette_best"], f["kmeans_best_k"] = clusterability(P)
 
     # --- métrica real (matriz D) ---------------------------------------

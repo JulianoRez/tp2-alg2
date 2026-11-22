@@ -14,9 +14,14 @@ Observações importantes para a análise:
   que já estava alocado quando ela começou (memória "extra" da subrotina).
 * Seções podem ser aninhadas: antes de zerar o pico (reset_peak) para a seção
   interna, o pico corrente é repassado às seções externas abertas.
+* Em modo memória, cada seção começa com gc.collect(): sem isso, objetos
+  mortos de seções anteriores seriam liberados durante a seção medida e
+  "descontariam" as alocações dela (o Hierholzer aparecia com 8x menos
+  memória depois do blossom do que depois do matching guloso).
 """
 from __future__ import annotations
 
+import gc
 import tracemalloc
 from collections import defaultdict
 from contextlib import contextmanager
@@ -34,6 +39,9 @@ class Profiler:
     @contextmanager
     def section(self, name: str):
         if self.trace_memory:
+            # lixo de seções anteriores (ex.: o grafo do NetworkX do matching)
+            # seria liberado DENTRO desta seção e esconderia as alocações dela
+            gc.collect()
             cur, peak = tracemalloc.get_traced_memory()
             for frame in self._stack:          # preserva pico das seções externas
                 frame[2] = max(frame[2], peak)
