@@ -265,16 +265,25 @@ class BranchAndBound:
 
     # ----------------------------------------------------- best-first
     def _best_first(self):
-        """Best-first: sempre expande o nó aberto de menor LB."""
+        """Best-first: sempre expande o nó aberto de menor LB.
+
+        Cada nó aberto guarda o caminho como LISTA ENCADEADA imutável
+        (vértice, nó_pai): criar um filho custa O(1) e os prefixos comuns são
+        compartilhados. A 1ª versão guardava uma tupla com o caminho inteiro
+        (cópia O(profundidade) por filho) e escalares np.float64; a auditoria
+        mediu ~340 bytes por nó aberto contra ~260 do código bruto.
+        """
         n = self.n
         tie = itertools.count()
-        heap = [(float(self.root_lb), 0, next(tie), 0.0, 0.0, (0,))]
+        # chave: (LB, -profundidade, contador) -> empate favorece o nó mais fundo
+        heap = [(float(self.root_lb), 0, next(tie), 0.0, 0.0, (0, None))]
         visited = np.zeros(n, dtype=bool)
         try:
             while heap:
-                lb, negdepth, _, cost_d, cost_w, path = heapq.heappop(heap)
+                lb, negdepth, _, cost_d, cost_w, node = heapq.heappop(heap)
                 depth = -negdepth
                 if self._prunable(lb):
+                    # heap ordenado por LB: todos os nós abertos restantes também caem
                     self.pruned += 1 + len(heap)
                     self.pruned_by_depth[depth] += 1
                     for item in heap:
@@ -283,30 +292,38 @@ class BranchAndBound:
                     break
                 self._check_time()
                 visited[:] = False
-                visited[list(path)] = True
+                v = node
+                while v is not None:                 # percorre o caminho: O(profundidade)
+                    visited[v[0]] = True
+                    v = v[1]
                 R = np.flatnonzero(~visited)
-                last = path[-1]
+                last = node[0]
                 if R.size == 1:
                     c = int(R[0])
                     self.leaves += 1
+                    path, v = [], node
+                    while v is not None:
+                        path.append(v[0])
+                        v = v[1]
                     self._update_incumbent(cost_d + self.D[last, c] + self.D[c, 0],
-                                           list(path) + [c])
+                                           path[::-1] + [c])
                     continue
                 self.expanded += 1
                 self.expanded_by_depth[depth] += 1
                 self.max_depth = max(self.max_depth, depth)
-                lbs = self._child_bounds(last, R, cost_d, cost_w)
+                lbs = self._child_bounds(last, R, cost_d, cost_w).tolist()
                 self.generated += R.size
-                for k, c in enumerate(R):
-                    c = int(c)
+                Dl, Wl = self.D[last], self.W[last]
+                usa_w = self.bound != "twomin"      # no twomin W = D: não guarda cost_w
+                for k, c in enumerate(R.tolist()):
                     if self._prunable(lbs[k]):
                         self.pruned += 1
                         self.pruned_by_depth[depth + 1] += 1
                         continue
-                    heapq.heappush(heap, (float(lbs[k]), -(depth + 1), next(tie),
-                                          cost_d + float(self.D[last, c]),
-                                          cost_w + float(self.W[last, c]),
-                                          path + (c,)))
+                    heapq.heappush(heap, (lbs[k], -(depth + 1), next(tie),
+                                          cost_d + float(Dl[c]),
+                                          cost_w + float(Wl[c]) if usa_w else 0.0,
+                                          (c, node)))
                 self.max_open = max(self.max_open, len(heap))
                 if len(heap) > self.max_open_cap:
                     raise _Stop("memout")
