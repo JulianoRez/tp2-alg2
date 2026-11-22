@@ -55,7 +55,12 @@ import numpy as np
 
 from .heuristics import nearest_neighbor_tour
 from .mst import mst_without_each_vertex, prim, tree_degrees
-from .tsplib import tour_cost
+
+
+def _cost(D: np.ndarray, tour) -> float:
+    """Custo do tour em float (sem arredondar: vale também para D não inteira)."""
+    t = np.asarray(tour)
+    return float(D[t, np.roll(t, -1)].sum())
 
 BOUNDS = ("twomin", "onetree", "hk")
 SEARCHES = ("dfs", "best")
@@ -113,7 +118,7 @@ def held_karp_bound(D: np.ndarray, ub: float | None = None,
     if n < 3:
         return np.zeros(n), 0.0, 0
     if ub is None:
-        ub = float(tour_cost(D, nearest_neighbor_tour(D)))
+        ub = _cost(D, nearest_neighbor_tour(D))
     max_iter = max_iter or 50 * n
     patience = max(5, n // 5)
     pi = np.zeros(n)
@@ -263,48 +268,50 @@ class BranchAndBound:
         """Best-first: sempre expande o nó aberto de menor LB."""
         n = self.n
         tie = itertools.count()
-        heap = [(self.root_lb, 0, next(tie), 0.0, 0.0, (0,))]
+        heap = [(float(self.root_lb), 0, next(tie), 0.0, 0.0, (0,))]
         visited = np.zeros(n, dtype=bool)
-        while heap:
-            lb, negdepth, _, cost_d, cost_w, path = heapq.heappop(heap)
-            depth = -negdepth
-            if self._prunable(lb):
-                self.pruned += 1 + len(heap)
-                self.pruned_by_depth[depth] += 1
-                for item in heap:
-                    self.pruned_by_depth[-item[1]] += 1
-                heap.clear()
-                break
-            self._check_time()
-            visited[:] = False
-            visited[list(path)] = True
-            R = np.flatnonzero(~visited)
-            last = path[-1]
-            if R.size == 1:
-                c = int(R[0])
-                self.leaves += 1
-                self._update_incumbent(cost_d + self.D[last, c] + self.D[c, 0],
-                                       list(path) + [c])
-                continue
-            self.expanded += 1
-            self.expanded_by_depth[depth] += 1
-            self.max_depth = max(self.max_depth, depth)
-            lbs = self._child_bounds(last, R, cost_d, cost_w)
-            self.generated += R.size
-            for k, c in enumerate(R):
-                c = int(c)
-                if self._prunable(lbs[k]):
-                    self.pruned += 1
-                    self.pruned_by_depth[depth + 1] += 1
+        try:
+            while heap:
+                lb, negdepth, _, cost_d, cost_w, path = heapq.heappop(heap)
+                depth = -negdepth
+                if self._prunable(lb):
+                    self.pruned += 1 + len(heap)
+                    self.pruned_by_depth[depth] += 1
+                    for item in heap:
+                        self.pruned_by_depth[-item[1]] += 1
+                    heap.clear()
+                    break
+                self._check_time()
+                visited[:] = False
+                visited[list(path)] = True
+                R = np.flatnonzero(~visited)
+                last = path[-1]
+                if R.size == 1:
+                    c = int(R[0])
+                    self.leaves += 1
+                    self._update_incumbent(cost_d + self.D[last, c] + self.D[c, 0],
+                                           list(path) + [c])
                     continue
-                heapq.heappush(heap, (lbs[k], -(depth + 1), next(tie),
-                                      cost_d + self.D[last, c],
-                                      cost_w + self.W[last, c],
-                                      path + (c,)))
-            self.max_open = max(self.max_open, len(heap))
-            if len(heap) > self.max_open_cap:
-                raise _Stop("memout")
-        self.open_at_end = len(heap)
+                self.expanded += 1
+                self.expanded_by_depth[depth] += 1
+                self.max_depth = max(self.max_depth, depth)
+                lbs = self._child_bounds(last, R, cost_d, cost_w)
+                self.generated += R.size
+                for k, c in enumerate(R):
+                    c = int(c)
+                    if self._prunable(lbs[k]):
+                        self.pruned += 1
+                        self.pruned_by_depth[depth + 1] += 1
+                        continue
+                    heapq.heappush(heap, (float(lbs[k]), -(depth + 1), next(tie),
+                                          cost_d + float(self.D[last, c]),
+                                          cost_w + float(self.W[last, c]),
+                                          path + (c,)))
+                self.max_open = max(self.max_open, len(heap))
+                if len(heap) > self.max_open_cap:
+                    raise _Stop("memout")
+        finally:
+            self.open_at_end = len(heap)
 
     # ---------------------------------------------------------- solve
     def solve(self, initial_tour: list[int] | None = None) -> dict:
@@ -322,7 +329,7 @@ class BranchAndBound:
         time_root = perf_counter() - self.t_start
 
         if initial_tour is not None:
-            self.ub = float(tour_cost(self.D, initial_tour))
+            self.ub = _cost(self.D, initial_tour)
             self.best_tour = list(initial_tour)
         else:
             self.ub, self.best_tour = math.inf, None
@@ -334,9 +341,10 @@ class BranchAndBound:
         try:
             if n <= 3:
                 if self.best_tour is None:
-                    self._update_incumbent(float(tour_cost(self.D, list(range(n)))), list(range(n)))
+                    self._update_incumbent(_cost(self.D, list(range(n))), list(range(n)))
             elif self._prunable(self.root_lb):
-                self.pruned += 1
+                self.pruned += 1            # a raiz já prova que a incumbente é ótima
+                self.pruned_by_depth[0] += 1
             elif self.search == "dfs":
                 self.visited = np.zeros(n, dtype=bool)
                 self.visited[0] = True
@@ -349,8 +357,10 @@ class BranchAndBound:
         now = perf_counter()
         last_improvement = self.ub_history[-1][0] if self.ub_updates else 0.0
 
-        def out(x):
-            return None if math.isinf(x) else int(round(x))
+        def out(x):                         # inteiro se as distâncias são inteiras
+            if math.isinf(x):
+                return None
+            return int(round(x)) if self.integral else float(x)
 
         return {
             "status": status,
