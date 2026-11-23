@@ -1,0 +1,32 @@
+\begin{table}[htb]
+\centering
+\caption{Expoente do pico de memória extra (tracemalloc) em função de $N$.}
+\label{tab:memoria}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llcccr}
+\toprule
+Algoritmo & Subrotina & Teoria & $b$ (IC 95\%) & $R^2_{\log}$ & Pico em $N_{\max}$ (KiB) \\
+\midrule
+Viz. próximo & total & $n$ & 0{,}75 $\pm$ 0{,}09 & 0{,}977 & 463{,}0 \\
+Fecho convexo & total & $n$ & 1{,}32 $\pm$ 0{,}12 & 0{,}989 & 18.257{,}6 \\
+TATT & total & $n$ & 0{,}92 $\pm$ 0{,}08 & 0{,}990 & 853{,}3 \\
+TATT & MST (Prim) & $n$ & 0{,}55 $\pm$ 0{,}08 & 0{,}968 & 146{,}9 \\
+TATT & pré-ordem & -- & 1{,}04 $\pm$ 0{,}03 & 0{,}999 & 802{,}1 \\
+Christofides (blossom) & total & $n^2$ & 1{,}87 $\pm$ 0{,}18 & 0{,}993 & 36.358{,}4 \\
+Christofides (blossom) & MST (Prim) & $n$ & 0{,}46 $\pm$ 0{,}08 & 0{,}977 & 31{,}5 \\
+Christofides (blossom) & vértices ímpares & -- & 0{,}36 $\pm$ 0{,}12 & 0{,}925 & 22{,}3 \\
+Christofides (blossom) & matching: grafo & $n^2$ & 2{,}01 $\pm$ 0{,}13 & 0{,}997 & 36.345{,}5 \\
+Christofides (blossom) & matching: blossom & $n^2$ & 1{,}07 $\pm$ 0{,}20 & 0{,}975 & 827{,}3 \\
+Christofides (blossom) & Hierholzer & -- & 1{,}05 $\pm$ 0{,}04 & 0{,}999 & 386{,}7 \\
+Christofides (blossom) & atalhos & -- & 0{,}62 $\pm$ 0{,}16 & 0{,}953 & 9{,}9 \\
+Christofides (guloso) & total & $n^2$ & 2{,}00 $\pm$ 0{,}16 & 0{,}990 & 448.597{,}2 \\
+Christofides (guloso) & MST (Prim) & -- & 0{,}55 $\pm$ 0{,}08 & 0{,}968 & 146{,}9 \\
+Christofides (guloso) & vértices ímpares & -- & 0{,}52 $\pm$ 0{,}13 & 0{,}919 & 112{,}0 \\
+Christofides (guloso) & matching: blossom & -- & 2{,}03 $\pm$ 0{,}15 & 0{,}992 & 448.524{,}2 \\
+Christofides (guloso) & Hierholzer & -- & 1{,}05 $\pm$ 0{,}02 & 0{,}999 & 2.584{,}7 \\
+Christofides (guloso) & atalhos & -- & 0{,}84 $\pm$ 0{,}08 & 0{,}987 & 58{,}4 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

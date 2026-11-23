@@ -1,0 +1,134 @@
+== gap_nn ==
+|--- hull_fraction <= 0.475
+|   |--- silhouette_best <= 0.608
+|   |   |--- silhouette_best <= 0.427
+|   |   |   |--- value: [26.624]
+|   |   |--- silhouette_best >  0.427
+|   |   |   |--- value: [20.787]
+|   |--- silhouette_best >  0.608
+|   |   |--- mst_odd_fraction <= 0.342
+|   |   |   |--- value: [8.222]
+|   |   |--- mst_odd_fraction >  0.342
+|   |   |   |--- value: [17.290]
+|--- hull_fraction >  0.475
+|   |--- triangle_violation_frac <= 0.000
+|   |   |--- value: [0.258]
+|   |--- triangle_violation_frac >  0.000
+|   |   |--- value: [2.119]
+
+
+== gap_hull ==
+|--- silhouette_best <= 0.479
+|   |--- spatial_entropy <= 0.943
+|   |   |--- n <= 41.000
+|   |   |   |--- value: [2.849]
+|   |   |--- n >  41.000
+|   |   |   |--- value: [4.917]
+|   |--- spatial_entropy >  0.943
+|   |   |--- hull_fraction <= 0.258
+|   |   |   |--- value: [4.905]
+|   |   |--- hull_fraction >  0.258
+|   |   |   |--- value: [7.362]
+|--- silhouette_best >  0.479
+|   |--- hull_fraction <= 0.195
+|   |   |--- n <= 41.000
+|   |   |   |--- value: [2.586]
+|   |   |--- n >  41.000
+|   |   |   |--- value: [4.344]
+|   |--- hull_fraction >  0.195
+|   |   |--- hull_fraction <= 0.351
+|   |   |   |--- value: [1.354]
+|   |   |--- hull_fraction >  0.351
+|   |   |   |--- value: [0.087]
+
+
+== gap_tatt ==
+|--- silhouette_best <= 0.584
+|   |--- aspect_ratio <= 0.825
+|   |   |--- n <= 28.000
+|   |   |   |--- value: [18.263]
+|   |   |--- n >  28.000
+|   |   |   |--- value: [26.676]
+|   |--- aspect_ratio >  0.825
+|   |   |--- nn_dist_cv <= 0.760
+|   |   |   |--- value: [33.924]
+|   |   |--- nn_dist_cv >  0.760
+|   |   |   |--- value: [29.002]
+|--- silhouette_best >  0.584
+|   |--- n <= 25.000
+|   |   |--- hull_fraction <= 0.325
+|   |   |   |--- value: [17.304]
+|   |   |--- hull_fraction >  0.325
+|   |   |   |--- value: [9.174]
+|   |--- n >  25.000
+|   |   |--- nn_dist_cv <= 0.551
+|   |   |   |--- value: [15.501]
+|   |   |--- nn_dist_cv >  0.551
+|   |   |   |--- value: [21.556]
+
+
+== gap_christofides_blossom ==
+|--- hull_fraction <= 0.475
+|   |--- clark_evans <= 1.261
+|   |   |--- spatial_entropy <= 0.811
+|   |   |   |--- value: [6.681]
+|   |   |--- spatial_entropy >  0.811
+|   |   |   |--- value: [9.347]
+|   |--- clark_evans >  1.261
+|   |   |--- spatial_entropy <= 0.959
+|   |   |   |--- value: [11.354]
+|   |   |--- spatial_entropy >  0.959
+|   |   |   |--- value: [14.644]
+|--- hull_fraction >  0.475
+|   |--- spatial_entropy <= 0.820
+|   |   |--- value: [0.463]
+|   |--- spatial_entropy >  0.820
+|   |   |--- value: [0.000]
+
+
+== gap_christofides_greedy ==
+|--- hull_fraction <= 0.475
+|   |--- spatial_entropy <= 0.842
+|   |   |--- clark_evans <= 0.533
+|   |   |   |--- value: [7.245]
+|   |   |--- clark_evans >  0.533
+|   |   |   |--- value: [14.181]
+|   |--- spatial_entropy >  0.842
+|   |   |--- spatial_entropy <= 0.957
+|   |   |   |--- value: [17.188]
+|   |   |--- spatial_entropy >  0.957
+|   |   |   |--- value: [21.675]
+|--- hull_fraction >  0.475
+|   |--- spatial_entropy <= 0.820
+|   |   |--- value: [0.768]
+|   |--- spatial_entropy >  0.820
+|   |   |--- value: [0.000]
+
+
+== root_gap_onetree ==
+|--- aspect_ratio <= 0.939
+|   |--- silhouette_best <= 0.503
+|   |   |--- value: [15.903]
+|   |--- silhouette_best >  0.503
+|   |   |--- spatial_entropy <= 0.737
+|   |   |   |--- value: [28.994]
+|   |   |--- spatial_entropy >  0.737
+|   |   |   |--- value: [24.432]
+|--- aspect_ratio >  0.939
+|   |--- spatial_entropy <= 0.788
+|   |   |--- value: [26.393]
+|   |--- spatial_entropy >  0.788
+|   |   |--- aspect_ratio <= 0.984
+|   |   |   |--- value: [13.943]
+|   |   |--- aspect_ratio >  0.984
+|   |   |   |--- value: [6.832]
+
+
+== log_prova_1arvore ==
+|--- hull_fraction <= 0.425
+|   |--- clark_evans <= 0.997
+|   |   |--- value: [5.029]
+|   |--- clark_evans >  0.997
+|   |   |--- value: [3.724]
+|--- hull_fraction >  0.425
+|   |--- value: [2.213]

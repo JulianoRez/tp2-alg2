@@ -1,0 +1,24 @@
+\begin{table}[htb]
+\centering
+\caption{Coeficientes padronizados da regressão múltipla (variação do gap, em pontos percentuais, por desvio padrão da feature). $^{*}p<0{,}05$, $^{**}p<0{,}01$, $^{***}p<0{,}001$.}
+\label{tab:coeficientes}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrrrrr}
+\toprule
+Feature & Viz. próximo & Fecho convexo & TATT & Christofides & Christ. guloso & gap raiz 1-árvore \\
+\midrule
+$N$ & 1{,}07 & 0{,}39$^{*}$ & 4{,}09$^{***}$ & 0{,}14 & 0{,}82 & -3{,}91$^{***}$ \\
+razão de aspecto & -1{,}70 & 0{,}71$^{**}$ & 2{,}75$^{**}$ & 1{,}01$^{**}$ & -1{,}23$^{*}$ & -3{,}53$^{***}$ \\
+fração no fecho & -2{,}45$^{*}$ & -0{,}74$^{**}$ & 2{,}30 & -2{,}20$^{***}$ & -2{,}90$^{***}$ & -6{,}91$^{***}$ \\
+entropia espacial & 0{,}02 & -0{,}55 & 1{,}19 & 2{,}15$^{***}$ & 1{,}57 & -2{,}00$^{**}$ \\
+Clark-Evans & 0{,}90 & 1{,}03$^{**}$ & -2{,}24 & 2{,}14$^{***}$ & 2{,}93$^{**}$ & -3{,}63$^{***}$ \\
+silhueta (k-means) & -3{,}14$^{*}$ & -0{,}50 & -3{,}65$^{*}$ & 1{,}47$^{**}$ & 0{,}99 & 0{,}62 \\
+CV dist. viz. próximo & 0{,}10 & 0{,}08 & -0{,}34 & 0{,}63 & 0{,}39 & -0{,}04 \\
+grau máx. MST & 0{,}52 & 0{,}39 & 0{,}68 & 0{,}70$^{*}$ & 0{,}35 & 0{,}09 \\
+fração ímpares MST & 3{,}50$^{**}$ & -0{,}33 & 4{,}58$^{***}$ & 0{,}76 & 1{,}63$^{*}$ & -1{,}16$^{*}$ \\
+violação triangular & -0{,}58 & -0{,}05 & -0{,}00 & -0{,}05 & 0{,}70 & -0{,}20 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

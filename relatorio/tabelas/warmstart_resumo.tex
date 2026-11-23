@@ -1,0 +1,38 @@
+\begin{table}[htb]
+\centering
+\caption{Impacto do warm-start no B\&B (DFS, 15 instâncias, limite de 30 min). Nós exp. (geo): média geométrica dos nós expandidos nas instâncias que todas as estratégias resolveram; razão vs trivial: média geométrica da razão por instância. Posto tempo: posto médio do tempo total (timeout = 1800 s; 1 = mais rápido). Tempo total: soma das 15 execuções.}
+\label{tab:warmstart}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llcrrrrr}
+\toprule
+Configuração & Warm-start & Resolv. & Gap inicial & Nós exp. (geo) & Razão vs trivial & Posto tempo & Tempo total (s) \\
+\midrule
+Held-Karp, filhos por LB & Trivial & 15/15 & 152{,}3\% & 193 & 1{,}000 & 2{,}20 & 76 \\
+ & Viz. próximo & 15/15 & 24{,}8\% & 244 & 1{,}260 & 2{,}40 & 76 \\
+ & Fecho convexo & 15/15 & 2{,}5\% & 129 & 0{,}669 & 2{,}53 & 38 \\
+ & TATT & 15/15 & 28{,}5\% & 243 & 1{,}260 & 3{,}07 & 77 \\
+ & Christofides & 15/15 & 8{,}1\% & 209 & 1{,}083 & 4{,}80 & 76 \\
+\midrule
+Held-Karp, filhos por índice & Trivial & 13/15 & 152{,}3\% & 9.236 & 1{,}000 & 4{,}53 & 5.464 \\
+ & Viz. próximo & 15/15 & 24{,}8\% & 2.918 & 0{,}316 & 2{,}87 & 1.213 \\
+ & Fecho convexo & 15/15 & 2{,}5\% & 224 & 0{,}024 & 1{,}20 & 102 \\
+ & TATT & 15/15 & 28{,}5\% & 3.788 & 0{,}410 & 3{,}73 & 2.061 \\
+ & Christofides & 15/15 & 8{,}1\% & 1.256 & 0{,}136 & 2{,}67 & 787 \\
+\midrule
+1-árvore, filhos por LB & Trivial & 9/15 & 152{,}3\% & 384.143 & 1{,}000 & 2{,}80 & 12.886 \\
+ & Viz. próximo & 9/15 & 24{,}8\% & 386.606 & 1{,}006 & 3{,}47 & 12.959 \\
+ & Fecho convexo & 9/15 & 2{,}5\% & 361.217 & 0{,}940 & 2{,}33 & 12.894 \\
+ & TATT & 9/15 & 28{,}5\% & 386.644 & 1{,}007 & 3{,}20 & 12.937 \\
+ & Christofides & 9/15 & 8{,}1\% & 385.704 & 1{,}004 & 3{,}20 & 12.942 \\
+\midrule
+1-árvore, filhos por índice & Trivial & 8/15 & 152{,}3\% & 524.360 & 1{,}000 & 3{,}83 & 14.244 \\
+ & Viz. próximo & 8/15 & 24{,}8\% & 429.894 & 0{,}820 & 3{,}30 & 14.225 \\
+ & Fecho convexo & 9/15 & 2{,}5\% & 261.998 & 0{,}500 & 2{,}20 & 13.427 \\
+ & TATT & 8/15 & 28{,}5\% & 457.197 & 0{,}872 & 3{,}03 & 14.190 \\
+ & Christofides & 8/15 & 8{,}1\% & 344.515 & 0{,}657 & 2{,}63 & 14.063 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

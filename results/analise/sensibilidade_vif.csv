@@ -1,0 +1,14 @@
+,vif,usada
+n,3.229863464910942,True
+aspect_ratio,3.404778308304012,True
+hull_fraction,3.5468750412671652,True
+spatial_entropy,9.519136824820583,True
+clark_evans,9.831902067467615,True
+silhouette_best,9.117300961139852,True
+nn_dist_cv,9.189686469178286,True
+dist_cv,15.327988435775747,False
+mst_max_degree,5.465863580329497,True
+mst_leaf_fraction,67.84145174125881,False
+mst_odd_fraction,57.096151790338325,True
+mst_edge_cv,24.039713464359327,False
+triangle_violation_frac,1.1716821589175999,True

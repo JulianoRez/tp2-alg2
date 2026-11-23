@@ -1,0 +1,16 @@
+\begin{table}[htb]
+\centering
+\caption{Crescimento do B\&B (DFS, filhos por limite, warm-start vizinho mais próximo) em instâncias uniformes. Fator/vértice: $10^{\beta}$ do ajuste $\log_{10}(\text{nós}) = \alpha + \beta N$. $b$ tempo/nó: expoente do tempo de cálculo dos limites por nó expandido; $b$ memória: expoente do pico de memória (tracemalloc) em função de $N$.}
+\label{tab:bnbescala}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lcrccccc}
+\toprule
+Limite & $N$ & Timeouts & Fator/vértice & $R^2$ exp. & $R^2$ polin. & $b$ tempo/nó & $b$ memória \\
+\midrule
+Held-Karp & 10--50 & 0 & 1{,}21 & 0{,}882 & 0{,}752 & 0{,}65 & 1{,}06 \\
+1-árvore & 8--26 & 0 & 1{,}54 & 0{,}986 & 0{,}952 & 0{,}76 & 0{,}88 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

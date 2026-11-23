@@ -1,0 +1,18 @@
+\begin{table}[htb]
+\centering
+\caption{Ponto de colapso do B\&B exato na TSPLIB (30 min).}
+\label{tab:colapso}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lcccc}
+\toprule
+Configuração & Resolvidas (alguma) & Resolvidas (todas) & Maior $N$ resolvido & Menor $N$ com timeout \\
+\midrule
+Held-Karp, filhos por LB & 15/15 & 15/15 & 70 & -- \\
+Held-Karp, filhos por índice & 15/15 & 13/15 & 70 & 52 \\
+1-árvore, filhos por LB & 9/15 & 9/15 & 42 & 22 \\
+1-árvore, filhos por índice & 9/15 & 8/15 & 42 & 22 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

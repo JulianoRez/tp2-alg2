@@ -1,0 +1,35 @@
+\begin{table}[htb]
+\centering
+\caption{Auditoria do B\&B (limite de 30 s por execução; todas as variantes com o mesmo warm-start, vizinho mais próximo, e o mesmo teto de 2 milhões de nós abertos). B/nó aberto: pico de memória dividido pelo máximo de nós abertos, ambos da mesma execução com tracemalloc.}
+\label{tab:auditoria_bnb}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llcrrrr}
+\toprule
+Instância & Variante & Status & Nós exp. & Tempo (s) & Pico (MiB) & B/nó aberto \\
+\midrule
+burma14 & bruto: best-first, cópias, LB em Python & ótimo & 483.341 & 18{,}13 & 101{,}2 & 259 \\
+burma14 & bruto, GC desligado & ótimo & 483.341 & 17{,}78 & 101{,}3 & 260 \\
+burma14 & best-first refatorado & ótimo & 237.333 & 3{,}66 & 98{,}1 & 273 \\
+burma14 & best-first refatorado, GC desligado & ótimo & 237.333 & 3{,}46 & 98{,}1 & 273 \\
+burma14 & DFS, 2 menores arestas & ótimo & 278.533 & 3{,}35 & 0{,}0 & -- \\
+burma14 & DFS, 1-árvore & ótimo & 7.772 & 0{,}24 & 0{,}0 & -- \\
+burma14 & DFS, Held-Karp & ótimo & 12 & 0{,}00 & 0{,}0 & -- \\
+ulysses16 & bruto: best-first, cópias, LB em Python & memória & 337.320 & 27{,}26 & 104{,}0 & 257 \\
+ulysses16 & bruto, GC desligado & memória & 337.320 & 25{,}18 & 103{,}9 & 257 \\
+ulysses16 & best-first refatorado & memória & 311.106 & 6{,}84 & 365{,}7 & 268 \\
+ulysses16 & best-first refatorado, GC desligado & memória & 311.106 & 5{,}75 & 368{,}4 & 268 \\
+ulysses16 & DFS, 2 menores arestas & timeout & 2.497.158 & 30{,}00 & 0{,}0 & -- \\
+ulysses16 & DFS, 1-árvore & timeout & 1.092.828 & 30{,}00 & 0{,}0 & -- \\
+ulysses16 & DFS, Held-Karp & ótimo & 14 & 0{,}01 & 0{,}0 & -- \\
+gr17 & bruto: best-first, cópias, LB em Python & timeout & 327.115 & 30{,}42 & 94{,}9 & 260 \\
+gr17 & bruto, GC desligado & timeout & 347.969 & 30{,}45 & 95{,}2 & 260 \\
+gr17 & best-first refatorado & memória & 419.819 & 8{,}89 & 323{,}4 & 270 \\
+gr17 & best-first refatorado, GC desligado & memória & 419.819 & 7{,}72 & 322{,}0 & 270 \\
+gr17 & DFS, 2 menores arestas & timeout & 2.426.378 & 30{,}00 & 0{,}0 & -- \\
+gr17 & DFS, 1-árvore & ótimo & 293.064 & 10{,}62 & 0{,}0 & -- \\
+gr17 & DFS, Held-Karp & ótimo & 15 & 0{,}00 & 0{,}0 & -- \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

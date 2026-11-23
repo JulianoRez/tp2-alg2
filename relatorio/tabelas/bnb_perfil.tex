@@ -1,0 +1,18 @@
+\begin{table}[htb]
+\centering
+\caption{Profiling do B\&B: mediana, nas 75 execuções de cada configuração, da fração do tempo total em cada subrotina, e tempo de cálculo dos limites por nó expandido. O restante é a própria busca (recursão, ordenação).}
+\label{tab:perfil}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrrr}
+\toprule
+Configuração & Heurística & Limite na raiz & Limites dos filhos & $\mu$s por nó \\
+\midrule
+Held-Karp, filhos por LB & 0{,}75\% & 50{,}9\% & 44{,}8\% & 59 \\
+Held-Karp, filhos por índice & 0{,}08\% & 6{,}7\% & 83{,}0\% & 48 \\
+1-árvore, filhos por LB & 0{,}00\% & 0{,}0\% & 94{,}4\% & 67 \\
+1-árvore, filhos por índice & 0{,}00\% & 0{,}0\% & 90{,}7\% & 68 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

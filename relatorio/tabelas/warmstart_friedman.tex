@@ -1,0 +1,18 @@
+\begin{table}[htb]
+\centering
+\caption{Teste de Friedman (4 graus de liberdade) para a hipótese de que as cinco estratégias de warm-start têm o mesmo desempenho.}
+\label{tab:friedman}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lcccc}
+\toprule
+Configuração & $\chi^2_F$ tempo & $p$ tempo & $\chi^2_F$ nós & $p$ nós \\
+\midrule
+Held-Karp, filhos por LB & 26{,}8 & 2{,}2e-05 & 25{,}8 & 3{,}5e-05 \\
+Held-Karp, filhos por índice & 37{,}5 & 1{,}4e-07 & 38{,}3 & 9{,}6e-08 \\
+1-árvore, filhos por LB & 7{,}8 & 9{,}8e-02 & 26{,}0 & 3{,}1e-05 \\
+1-árvore, filhos por índice & 16{,}5 & 2{,}4e-03 & 24{,}1 & 7{,}6e-05 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

@@ -1,0 +1,32 @@
+\begin{table}[htb]
+\centering
+\caption{Ajuste do tempo em função de $N$ (medianas de 3 sementes, $N=25$ a $6400$; blossom até $1000$). $b$: expoente da lei de potência $t=aN^b$ (log-log). Melhor forma: modelo teórico com menor RMSE em escala log. $R^2$/RMSE teoria: ajuste $t=c_0+c_1f(N)$ do modelo teórico em escala linear.}
+\label{tab:complexidade}
+\small
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llcccccc}
+\toprule
+Algoritmo & Subrotina & Teoria & $b$ (IC 95\%) & $R^2_{\log}$ & Melhor forma & $R^2$ teoria & RMSE (ms) \\
+\midrule
+Viz. próximo & total & $n^2$ & 1{,}20 $\pm$ 0{,}11 & 0{,}988 & $n\log n$ & 0{,}995 & 0{,}889 \\
+Fecho convexo & total & $n^2$ & 1{,}55 $\pm$ 0{,}17 & 0{,}981 & $n\log n$ & 0{,}996 & 42{,}363 \\
+TATT & total & $n^2$ & 1{,}20 $\pm$ 0{,}08 & 0{,}993 & $n\log n$ & 0{,}989 & 2{,}113 \\
+TATT & MST (Prim) & $n^2$ & 1{,}22 $\pm$ 0{,}08 & 0{,}994 & $n\log n$ & 0{,}990 & 1{,}982 \\
+TATT & pré-ordem & $n$ & 0{,}99 $\pm$ 0{,}06 & 0{,}995 & $n$ & 0{,}995 & 0{,}043 \\
+Christofides (blossom) & total & $n^3$ & 2{,}81 $\pm$ 0{,}20 & 0{,}996 & $n^3$ & 0{,}997 & 331{,}478 \\
+Christofides (blossom) & MST (Prim) & $n^2$ & 1{,}13 $\pm$ 0{,}07 & 0{,}997 & $n\log n$ & 0{,}980 & 0{,}239 \\
+Christofides (blossom) & vértices ímpares & $n$ & 0{,}31 $\pm$ 0{,}10 & 0{,}926 & $n$ & 0{,}915 & 0{,}002 \\
+Christofides (blossom) & matching: grafo & $n^2$ & 1{,}78 $\pm$ 0{,}27 & 0{,}983 & $n^2$ & 0{,}996 & 0{,}920 \\
+Christofides (blossom) & matching: blossom & $n^3$ & 2{,}89 $\pm$ 0{,}15 & 0{,}998 & $n^3$ & 0{,}997 & 333{,}007 \\
+Christofides (blossom) & Hierholzer & $n$ & 1{,}01 $\pm$ 0{,}06 & 0{,}997 & $n$ & 0{,}996 & 0{,}018 \\
+Christofides (blossom) & atalhos & $n$ & 0{,}82 $\pm$ 0{,}07 & 0{,}994 & $n$ & 0{,}999 & 0{,}000 \\
+Christofides (guloso) & total & $n^2\log n$ & 1{,}52 $\pm$ 0{,}20 & 0{,}975 & $n\log n$ & 1{,}000 & 0{,}971 \\
+Christofides (guloso) & MST (Prim) & -- & 1{,}23 $\pm$ 0{,}08 & 0{,}993 & $n\log n$ & -- & -- \\
+Christofides (guloso) & vértices ímpares & -- & 0{,}32 $\pm$ 0{,}12 & 0{,}828 & $n$ & -- & -- \\
+Christofides (guloso) & matching: blossom & $n^2\log n$ & 1{,}82 $\pm$ 0{,}23 & 0{,}977 & $n^2$ & 1{,}000 & 3{,}247 \\
+Christofides (guloso) & Hierholzer & -- & 1{,}04 $\pm$ 0{,}03 & 0{,}998 & $n$ & -- & -- \\
+Christofides (guloso) & atalhos & -- & 0{,}89 $\pm$ 0{,}06 & 0{,}994 & $n$ & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

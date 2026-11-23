@@ -1,0 +1,5 @@
+bound,child_order,resolvidas_por_alguma_estrategia,resolvidas_por_todas,maior_n_resolvido,menor_n_com_timeout
+hk,bound,15,15,70,
+hk,index,15,13,70,52.0
+onetree,bound,9,9,42,22.0
+onetree,index,9,8,42,22.0
