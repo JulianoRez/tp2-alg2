@@ -1,0 +1,166 @@
+\section{Implementação, profiling e auditoria}\label{sec:impl}
+
+Tudo foi implementado em Python~3.11 com NumPy. O NetworkX~\cite{hagberg2008}
+é usado apenas no emparelhamento perfeito de peso mínimo do Christofides, e o
+scikit-learn~\cite{pedregosa2011} apenas na análise. O código está organizado
+em \texttt{tsp/}: leitor da TSPLIB, MST, heurísticas, aproximativos, B\&B,
+features e profiler. Os experimentos ficam em \texttt{run\_*.py},
+\texttt{profile\_scaling.py} e \texttt{audit\_naive.py}, e a análise em
+\texttt{analise/}. Há 103 testes automatizados, que comparam com força
+bruta, com o SciPy e com os ótimos e tours publicados da TSPLIB.
+
+\subsection{Instâncias e distâncias}
+O enunciado pede instâncias EUC\_2D com $N\in[10,75]$, mas a TSPLIB só tem
+três nessa faixa (eil51, berlin52 e st70). Vários exemplos do próprio
+enunciado são de outros tipos: ulysses16 é GEO, gr24, fri26 e swiss42 são
+EXPLICIT, e att48 é ATT. Usamos 15 instâncias de 14 a 70 vértices
+(Tabela~\ref{tab:instancias}), cada uma com a distância oficial do seu
+tipo~\cite{reinelt1991}. A validação é que o custo de cada \texttt{.opt.tour}
+publicado coincide com o ótimo publicado.
+
+A regra de 80\% das instâncias com $N\le 40$ também não pode ser cumprida
+com a TSPLIB, que só tem nove instâncias simétricas com $N\le40$. Usamos
+todas as nove (60\% do conjunto). As instâncias EXPLICIT não têm
+coordenadas. Para elas, coordenadas 2D foram obtidas por escalonamento
+multidimensional clássico (MDS) da matriz de distâncias, e são usadas
+\emph{apenas} nas features geométricas e na heurística do fecho convexo.
+Para compensar o conjunto pequeno na análise de sensibilidade, geramos
+instâncias sintéticas adversariais (Seção~\ref{sec:sens}).
+
+\input{tabelas/instancias}
+
+\subsection{Estruturas de dados e algoritmos}
+
+\paragraph{Matriz de distâncias.} A matriz é densa ($n\times n$,
+\texttt{float64}) e representa exatamente as distâncias inteiras da TSPLIB
+(até $2^{53}$). Ela é \texttt{float} porque o limite de Held-Karp soma
+penalidades reais. Uma cópia com $+\infty$ na diagonal evita testes
+$i\neq j$ nos laços.
+
+\paragraph{MST (Prim $O(n^2)$).} O grafo é completo, então Prim com vetor de
+chaves é ótimo para grafo denso: $O(n^2)$, sem materializar as $n(n-1)/2$
+arestas, como faria o Kruskal, e sem o $\log n$ do heap. Cada uma das $n$
+iterações é uma operação vetorizada sobre o vetor de chaves.
+
+\paragraph{Twice-around-the-tree.} Pré-ordem iterativa da MST (pilha
+explícita), que equivale a percorrer cada aresta da árvore duas vezes e pular
+os repetidos. O custo é $\le 2\,\mathrm{MST}\le 2\,\mathrm{OPT}$ sob a
+desigualdade triangular.
+
+\paragraph{Christofides~\cite{christofides1976}.} O algoritmo calcula a MST,
+toma os vértices de grau ímpar ($k$ deles) e encontra um emparelhamento
+perfeito de peso mínimo entre eles. Depois monta um circuito euleriano pelo
+algoritmo de Hierholzer, com ponteiro por vértice para a próxima aresta
+(cada aresta é examinada $O(1)$ vezes), e por fim aplica os atalhos. O
+NetworkX só oferece emparelhamento de peso \emph{máximo} (blossom de
+Edmonds~\cite{edmonds1965,galil1986}, $O(k^3)$). Usamos então
+$w'(u,v)=C-d(u,v)$ com $C>\max d$ e \texttt{maxcardinality=True}: como todo
+emparelhamento perfeito tem $k/2$ arestas, maximizar $\sum w'$ equivale a
+minimizar $\sum d$. Também implementamos um emparelhamento guloso, que
+escolhe as arestas em ordem crescente de peso em $O(k^2\log k)$, mas perde a
+garantia de 1,5. Ele serve para medir o custo e a qualidade do blossom.
+
+\paragraph{Heurísticas de warm-start.} São três:
+\begin{itemize}
+  \item \emph{trivial}: o tour $1\to2\to\dots\to n\to 1$;
+  \item \emph{vizinho mais próximo}: $O(n^2)$, com máscara vetorizada dos
+    visitados;
+  \item \emph{inserção a partir do fecho convexo}: o fecho é calculado pela
+    cadeia monótona de Andrew~\cite{andrew1979}, em $O(n\log n)$. Os
+    vértices internos entram por inserção mais barata~\cite{rosenkrantz1977}.
+    O tour é uma lista ligada (\texttt{succ}), e cada vértice de fora guarda
+    em cache sua melhor inserção. Inserir $k$ entre $a$ e $b$ destrói só a
+    aresta $(a,b)$, então só quem tinha $(a,b)$ como melhor aresta é
+    recalculado contra o tour inteiro; os demais comparam apenas com as duas
+    arestas novas.
+\end{itemize}
+Os aproximativos (TATT e Christofides) completam as cinco estratégias.
+
+\subsection{Branch-and-Bound}
+
+\paragraph{Espaço de busca.} Um nó é um caminho parcial
+$P=(0,v_1,\dots,v_k)$, com $R$ o conjunto dos vértices não visitados. Fixar o
+vértice inicial elimina as $n$ rotações equivalentes de cada tour. Os filhos
+são $P+(c)$ para $c\in R$, e o nó com $|R|=1$ fecha o tour. Como os custos
+são inteiros, um nó só melhora a incumbente $\mathrm{UB}$ se
+$\lceil \mathrm{LB}\rceil\le \mathrm{UB}-1$; podamos quando
+$\lceil\mathrm{LB}-10^{-6}\rceil\ge\mathrm{UB}$, com tolerância para o erro
+de ponto flutuante.
+
+\paragraph{Limites inferiores.} Todos são calculados para os $|R|$ filhos de
+uma vez. Seja $R'=R\setminus\{c\}$.
+\begin{itemize}
+  \item \emph{Duas menores arestas} (\texttt{twomin}, o limite clássico
+    de~\cite{levitin2012}). Somam-se, para cada vértice, as arestas fixadas
+    no caminho ou as duas mais baratas incidentes a ele, e o total é dividido
+    por 2.
+  \item \emph{1-árvore} (\texttt{onetree}). Ainda falta um caminho
+    hamiltoniano $c\to r_1\to\dots\to r_j\to 0$ passando por todo $R'$.
+    Tirando as duas arestas das pontas, sobra uma árvore geradora de $R'$:
+    \[
+      \mathrm{LB}(c)=d(P)+d(v_k,c)+\mathrm{MST}(R')
+      +\min_{r\in R'} d(c,r)+\min_{r\in R'} d(r,0).
+    \]
+  \item \emph{Held-Karp} (\texttt{hk})~\cite{heldkarp1970,heldkarp1971}. É o
+    mesmo limite sobre os custos penalizados $w_{ij}=d_{ij}+\pi_i+\pi_j$.
+    Todo tour tem grau 2 em todo vértice, então
+    $w(\text{tour})=d(\text{tour})+2\sum\pi$, e qualquer limite em $w$ vale
+    para $d$ subtraindo $2\sum\pi$. As penalidades são otimizadas uma única
+    vez, na raiz, por subgradiente da relaxação Lagrangiana da 1-árvore:
+    $g_v=\mathrm{grau}_v-2$ e passo de Polyak
+    $t=\lambda(\mathrm{UB}-L(\pi))/\lVert g\rVert^2$. O $\lambda$ começa em 2
+    e cai pela metade após $\max(5,n/5)$ iterações sem melhora, com no máximo
+    $50n$ iterações. O UB que calibra o passo é sempre o do vizinho mais
+    próximo, para que o limite (e portanto a poda) não dependa do warm-start.
+\end{itemize}
+Os limites dos filhos exigem $\mathrm{MST}(R\setminus\{c\})$ para cada
+$c\in R$. Em vez de $|R|$ execuções do Prim, com $|R|^2$ iterações do
+interpretador, rodamos os $|R|$ Prims \emph{em lote}. Uma matriz de chaves
+$|R|\times|R|$ é relaxada com uma operação NumPy por iteração, de modo que o
+laço Python tem $|R|-2$ iterações. O custo aritmético continua
+$O(|R|^3)$ por nó.
+
+\paragraph{Estratégia de busca.} A estratégia padrão é a busca em
+profundidade (DFS) recursiva, com um único vetor booleano de visitados e um
+único caminho, ambos modificados no lugar. A memória é $O(n^2)$ (pilha de
+recursão mais um vetor de limites por nível), contra a memória exponencial
+do best-first. Os filhos podem ser visitados em ordem crescente de LB
+(\emph{filhos por LB}), o que dá à DFS um comportamento parecido com o do
+best-first, ou na ordem dos índices (\emph{filhos por índice}). No segundo
+caso, a DFS depende só do UB para podar, o que isola o efeito do warm-start.
+Com filhos ordenados, ao podar um filho podamos também todos os irmãos
+seguintes. O best-first também está implementado: um heap ordenado por
+$(\mathrm{LB},-\text{profundidade})$, com o caminho guardado como lista
+encadeada imutável e um teto de 2 milhões de nós abertos. Ele aparece só na
+auditoria. Em todas as estratégias valem os invariantes
+gerados $=$ podados $+$ expandidos $+$ folhas, conferidos nos testes.
+
+\subsection{Instrumentação}
+\begin{itemize}
+  \item \emph{Seções.} Cada subrotina roda dentro de
+    \texttt{prof.section(nome)}. São elas: MST, pré-ordem, vértices ímpares,
+    construção do grafo do matching, blossom, Hierholzer, atalhos, fecho e
+    inserção; no B\&B, o limite na raiz e os limites dos filhos.
+  \item \emph{Tempo.} É medido com \texttt{perf\_counter}: uma execução de
+    aquecimento descartada seguida da mediana de 5 repetições (3 nas
+    instâncias aleatórias).
+  \item \emph{Memória.} O \texttt{tracemalloc} deixa o Python várias vezes
+    mais lento, então a memória é medida numa execução \emph{separada}. Cada
+    seção registra o pico de alocação acima do que já estava alocado ao
+    entrar nela, após um \texttt{gc.collect()}.
+  \item \emph{Memória do B\&B.} O RSS do processo não serve: os
+    $\approx$170~MiB do interpretador e das bibliotecas escondem os KiB da
+    DFS (o RSS extra deu zero nas 300 execuções). Usamos por isso uma
+    execução curta sob \texttt{tracemalloc}. A DFS atinge o pico logo no
+    primeiro mergulho.
+  \item \emph{Isolamento.} Cada execução de B\&B roda num subprocesso. Além
+    do tempo de relógio, registramos o tempo de CPU do processo, para
+    quantificar a contenção quando há processos em paralelo. As bibliotecas
+    numéricas usam 1 thread.
+  \item \emph{GC.} As coletas do garbage collector são contadas apenas
+    dentro da janela cronometrada. Todos os experimentos de tempo foram
+    repetidos com o GC desligado.
+\end{itemize}
+
+\subsection{Auditoria e refatorações}\label{sec:auditoria}
+\input{secoes/2b_auditoria}

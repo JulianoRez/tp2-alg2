@@ -1,0 +1,41 @@
+\section{Introdução}
+
+O Problema do Caixeiro Viajante (TSP) pede o ciclo hamiltoniano de menor
+custo num grafo completo com pesos. Ele é NP-difícil: algoritmos exatos
+levam tempo exponencial no pior caso, e na prática são usados
+aproximativos com garantia de qualidade quando a métrica satisfaz a
+desigualdade triangular~\cite{applegate2006}. São eles o
+Twice-around-the-tree (TATT), com fator 2, e o
+Christofides~\cite{christofides1976}, com fator 1,5. Este trabalho
+implementa três algoritmos e os avalia empiricamente:
+\begin{itemize}
+  \item um Branch-and-Bound (B\&B) exato com três limites inferiores (duas
+    menores arestas, 1-árvore e Held-Karp~\cite{heldkarp1970,heldkarp1971});
+  \item o TATT;
+  \item o Christofides.
+\end{itemize}
+O foco não é só a escrita do código, mas também a \emph{auditoria} e a
+\emph{modelagem empírica} do desempenho.
+
+As contribuições são quatro.
+\begin{enumerate}
+  \item \emph{Profiling por subrotina e complexidade empírica}
+    (Seção~\ref{sec:complexidade}). Mostramos onde a complexidade teórica
+    aparece (o blossom, $N^{2{,}89}$) e onde ela é mascarada pelo
+    interpretador (Prim $O(n^2)$ medido como $N^{1{,}2}$). Também mostramos
+    que o garbage collector não distorce as curvas, mas cópias de memória
+    sim.
+  \item \emph{Impacto do warm-start} nos nós expandidos e podados do B\&B
+    (Seção~\ref{sec:warmstart}). O ganho depende da ordem de visita dos
+    filhos: quando a busca é cega, o fecho convexo reduz a árvore em
+    41$\times$; quando os filhos são ordenados pelo limite, o UB inicial
+    quase não importa.
+  \item \emph{Análise de sensibilidade} (Seção~\ref{sec:sens}). O gap de
+    cada aproximativo foi relacionado a features geométricas e da MST em
+    174 instâncias com ótimo exato, 159 delas sintéticas e geradas para
+    serem adversariais.
+  \item \emph{Auditoria} (Seção~\ref{sec:auditoria}). Comparamos o código
+    refatorado com uma versão ingênua e registramos uma revisão cruzada
+    entre dois modelos de IA, que encontrou erros
+    de \emph{medição}, e não de algoritmo.
+\end{enumerate}

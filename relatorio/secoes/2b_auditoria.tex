@@ -1,0 +1,69 @@
+O módulo \texttt{tsp/naive.py} reconstrói, como linha de base, os padrões de
+código ingênuo que um LLM tipicamente entrega sem revisão. São eles:
+\begin{itemize}
+  \item best-first que copia o caminho inteiro em cada filho, testa
+    pertinência com \texttt{v in path} em lista ($O(n)$) e recalcula o
+    limite do zero em Python puro ($O(n^2)$ por nó);
+  \item TATT e Christofides sobre o grafo \emph{completo} do NetworkX
+    ($n(n-1)/2$ arestas como dicionários);
+  \item circuito euleriano via \texttt{MultiGraph}.
+\end{itemize}
+O script \texttt{audit\_naive.py} mede as duas versões nas mesmas
+condições (Tabelas~\ref{tab:auditoria_aprox} e~\ref{tab:auditoria_bnb},
+Figura~\ref{fig:auditoria_mst}).
+
+\paragraph{Aproximativos.} No TATT, trocar o grafo do NetworkX pelo Prim
+$O(n^2)$ sobre a matriz deu 89$\times$ menos tempo e 714$\times$ menos
+memória em $N=500$ (49~MiB contra 0,07~MiB). No Christofides o ganho de
+tempo é pequeno (1,1 a 2,1$\times$), e foi o \emph{profiling por
+subrotina} que mostrou por quê: o blossom domina as duas versões. Ele
+responde por 81\% do tempo já em $N=25$ e por praticamente 100\% em
+$N=1000$ (Figura~\ref{fig:tempo}b). A refatoração reduziu a memória em 3,8
+a 7,2$\times$, porque o grafo do matching agora tem só os $k$ vértices
+ímpares, e não mais os $n$ vértices. Mais tempo nas outras subrotinas não
+mudaria o total: o próximo passo seria um matching em C, ou o guloso, que
+custa 2$\times$ mais gap (Seção~\ref{sec:sens}).
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.5\textwidth]{auditoria_children_mst}
+\caption{Tempo para calcular $\mathrm{MST}(R\setminus\{c\})$ para todos os
+$m$ filhos de um nó: $m$ execuções sequenciais do Prim, Prim em lote e atalho
+das folhas.}\label{fig:auditoria_mst}
+\end{figure}
+
+\paragraph{Limites dos filhos no B\&B.} O profiling do B\&B
+(Tabela~\ref{tab:perfil}) mostrou que, nas configurações em que a árvore é
+grande, 83 a 94\% do tempo vai para o cálculo dos limites dos filhos. Com
+Held-Karp e filhos por LB, as árvores são tão pequenas que metade do tempo
+vai para o subgradiente na raiz. O Prim em lote foi
+25$\times$ mais rápido que $m$ execuções sequenciais em $m=70$ (0,51~ms
+contra 12,96~ms). A revisão cruzada sugeriu ainda o \emph{atalho das
+folhas}: se $c$ é folha da MST $T$ de $R$, então $T-c$ é MST de $R-c$, e
+o limite sai em $O(1)$. A propriedade é verdadeira, e a implementação bate
+com o Prim sequencial nos testes. Mesmo assim, ela foi 1,3 a 2,1$\times$
+\emph{mais lenta} que o lote para $m\le70$. O atalho exige um Prim extra
+com $m$ iterações do interpretador, e nesse tamanho o custo é dominado pelo
+número de iterações Python, não pela aritmética, que o NumPy faz em
+microssegundos. É um exemplo direto de gargalo teórico que não é o gargalo
+prático, por isso a versão em lote continuou como padrão.
+
+\input{tabelas/auditoria_aproximativos}
+\input{tabelas/auditoria_bnb}
+
+\paragraph{Estratégia da árvore: best-first $\times$ DFS.} Com o mesmo
+limite fraco (duas menores arestas), o mesmo warm-start e o mesmo teto de
+nós abertos, o best-first refatorado resolveu o burma14 em 3,7~s, contra
+18,1~s da versão bruta. Ele expandiu metade dos nós (237 mil contra 483
+mil), porque o limite refatorado restringe as arestas livres das pontas do
+caminho aos vértices não visitados. Nas duas versões, porém, cada nó aberto
+custa cerca de 260 a 270~bytes, e a fila chega a centenas de MiB. No
+ulysses16 e no gr17, o best-first estourou o teto de 2 milhões de nós
+abertos (320 a 370~MiB) em menos de 10~s. A DFS com o mesmo limite usou
+0,03~MiB nas três instâncias. Por isso a DFS é a estratégia padrão: a
+memória cai de exponencial para $O(n^2)$, e a perda (expandir nós que o
+best-first não expandiria) é compensada por um bom limite. Com Held-Karp, a
+DFS resolveu as três instâncias expandindo 12 a 15 nós em menos de 10~ms.
+Para o best-first, guardar o caminho como lista encadeada (filho em $O(1)$)
+reduziu o custo por nó de $\approx$340 para $\approx$270~bytes. O restante
+é o custo fixo de uma tupla Python com 6 campos.
