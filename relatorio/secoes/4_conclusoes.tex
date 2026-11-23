@@ -1,0 +1,42 @@
+\section{Conclusões}
+
+\begin{itemize}
+  \item \emph{Gargalos teóricos e práticos não coincidem.} O blossom segue
+    a teoria ($N^{2{,}89}$, $R^2=0{,}997$) e domina o Christofides, de 81\%
+    do tempo em $N=25$ a praticamente 100\% em $N=1000$. As rotinas
+    $O(n^2)$ vetorizadas, por outro lado, crescem como $N^{1{,}2}$ até
+    milhares de vértices, porque o custo por iteração do interpretador
+    domina. Pelo mesmo motivo, o atalho das folhas, assintoticamente
+    melhor, foi mais lento que o Prim em lote.
+  \item \emph{Memória.} O que distorce a memória são cópias e estruturas
+    de objetos: o grafo completo do NetworkX e a fila do best-first. O
+    garbage collector não muda nenhum expoente (variação $\le0{,}02$) e
+    quase não roda no B\&B em DFS. A troca de best-first por DFS levou a
+    memória do B\&B de centenas de MiB para dezenas de KiB.
+  \item \emph{Warm-start.} O efeito depende da ordem de visita dos filhos.
+    Com filhos em ordem cega, a inserção a partir do fecho convexo reduziu
+    a árvore em 41$\times$ e o tempo total de 5464~s para 102~s, a um custo
+    de 0,5~ms. Com filhos ordenados pelo limite, a primeira descida já faz
+    o papel da heurística, e o UB inicial quase não importa; com
+    Held-Karp, um UB melhor chegou a gerar árvores \emph{maiores}. Em todos
+    os casos, as heurísticas custam milissegundos e compensam sempre que a
+    poda depende do UB.
+  \item \emph{O limite inferior decide o ponto de colapso.} Com 1-árvore, o
+    B\&B colapsa a partir de $N=22$ em instâncias agrupadas (ulysses22),
+    nas quais o limite fica 30\% abaixo do ótimo. Com Held-Karp, o gap na
+    raiz fica abaixo de 1\% e todas as instâncias até $N=70$ foram
+    resolvidas.
+  \item \emph{Features.} A fração de pontos no fecho convexo é a feature
+    mais consistente: mais pontos no fecho significa gaps menores. A
+    regularidade espacial (Clark-Evans e entropia) piora o Christofides, e
+    a ramificação da MST (fração de vértices ímpares) piora o vizinho mais
+    próximo e o TATT. As features globais explicam de 30 a 58\% da
+    variância do gap em validação cruzada e 83\% do gap do limite de
+    1-árvore. O restante depende de efeitos combinatórios locais.
+\end{itemize}
+
+Como trabalhos futuros, ficam três frentes: quebrar a simetria de reversão
+do tour, o que reduziria a árvore pela metade; implementar o matching em
+código compilado, que é o gargalo do Christofides; e usar características
+de instância mais locais, que poderiam explicar a parte do gap que as
+globais não explicam~\cite{smithmiles2012}.

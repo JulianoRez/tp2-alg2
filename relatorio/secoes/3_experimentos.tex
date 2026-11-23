@@ -1,0 +1,316 @@
+\section{Experimentos e resultados}\label{sec:exp}
+
+\paragraph{Ambiente e protocolo.} Os experimentos rodaram num AMD Ryzen~7
+7800X3D (8 núcleos/16 threads, 30~GB), Linux 7.0, Python~3.11.15 e
+NumPy~2.4. O limite foi de 30~minutos por execução (heurística mais B\&B);
+quem estourou foi registrado como NA, mantendo nós expandidos e podados e o
+melhor tour encontrado. A ordem de execução foi:
+\begin{enumerate}
+  \item as medições sensíveis a tempo (heurísticas, escala e auditoria),
+    rodadas \emph{uma de cada vez}, com a máquina sem outra carga;
+  \item o B\&B com Held-Karp na TSPLIB, com 4 processos em paralelo;
+  \item a escala do B\&B e as instâncias sintéticas, cujas métricas
+    principais (nós e custo) não dependem da máquina.
+\end{enumerate}
+O B\&B com 1-árvore veio de um primeiro lote com 8 processos e não foi
+refeito: o código da DFS não mudou, e quase metade dessas 150 execuções
+estoura o limite. Nesse lote, árvores idênticas chegaram a levar
+2$\times$ mais tempo, então a métrica principal do B\&B é o número de nós.
+Todas as 309 execuções do B\&B que terminaram (incluindo as 75 com o GC
+desligado) reproduziram o ótimo publicado.
+
+% -------------------------------------------------------------------------
+\subsection{Complexidade empírica}\label{sec:complexidade}
+
+Na TSPLIB, $N\in[14,70]$ é estreito demais para distinguir $n^2$ de $n^3$.
+Por isso as curvas foram ajustadas em instâncias uniformes no quadrado
+$[0,10^4]^2$ (distância EUC\_2D), com $N$ de 25 a 6400 (o blossom só até
+1000) e 3 sementes por $N$. A Tabela~\ref{tab:complexidade} traz, para cada
+subrotina, duas coisas:
+\begin{itemize}
+  \item o expoente livre $b$ de $t=aN^b$, ajustado em log-log;
+  \item o ajuste do modelo teórico $t=c_0+c_1f(N)$ na escala original, com
+    $R^2$ e RMSE, como pede o enunciado.
+\end{itemize}
+
+\input{tabelas/complexidade_tempo}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{tempo_vs_n}
+\caption{Tempo em função de $N$ (medianas). (a) Algoritmos completos. (b)
+Subrotinas do Christofides com retas de referência $\propto n^2$ e
+$\propto n^3$.}\label{fig:tempo}
+\end{figure}
+
+\paragraph{Onde a teoria aparece.} O blossom segue a teoria com precisão:
+$b=2{,}89\pm0{,}15$, contra $O(k^3)$, com $R^2=0{,}997$ para
+$c_0+c_1N^3$. Como ele domina, o Christofides inteiro também cresce como
+$N^{2{,}81}$. A construção do grafo do matching cresce como $N^{1{,}78}$
+($O(k^2)$ arestas), e Hierholzer e pré-ordem são lineares ($b\approx1$).
+O matching guloso fica em $N^{1{,}82}$, próximo de $O(k^2\log k)$.
+
+\paragraph{Onde a teoria não aparece.} Prim e vizinho mais próximo são
+$O(n^2)$, mas os expoentes medidos foram 1,22 e 1,20. Os dois têm $n$
+iterações, cada uma com uma operação NumPy de tamanho $n$. Para $n$ de
+milhares, o vetor (até 50~KB) cabe na cache, e a operação vetorizada custa
+poucos nanossegundos por elemento, contra microssegundos fixos do
+interpretador por iteração. O termo $O(n)$ por iteração só passa a dominar
+com $N$ grande: o expoente \emph{local} do Prim, entre $N$ e $2N$, sobe de
+0,97 ($N\le100$) para 1,54 (3200 a 6400), e o do vizinho mais próximo de
+0,84 para 1,66. A inserção a partir do fecho convexo passa de 2 no fim
+(2,37 entre 3200 e 6400), pelos recálculos das inserções invalidadas. Nesse
+regime, o modelo teórico ajusta bem na escala linear ($R^2\ge0{,}98$), mas
+$n\log n$ descreve melhor a \emph{forma} da curva: até $N\approx10^3$, o
+custo prático de um algoritmo $O(n^2)$ vetorizado é dominado pelo número
+de iterações do interpretador.
+
+\paragraph{Memória.} A Tabela~\ref{tab:memoria} confirma $O(n^2)$ na
+construção do grafo do matching ($b=2{,}01$, 36~MiB em $N=1000$, contra
+31~KiB da MST). No matching guloso a memória também é $O(n^2)$ ($b=2{,}03$,
+438~MiB em $N=6400$), por causa dos vetores de índices de todos os $k^2/2$
+pares. As subrotinas lineares ficam com $b<1$ para $N$ pequeno porque há um
+custo fixo de alocação.
+
+\input{tabelas/complexidade_memoria}
+
+\paragraph{Garbage collection.} Toda a escala foi repetida com o GC
+desligado (Tabela~\ref{tab:gc}). O Christofides chega a 194 coletas por
+execução em $N=1000$, porque o NetworkX cria milhões de objetos Python.
+Mesmo assim, a razão entre os tempos com e sem GC ficou entre 0,95 e 1,06
+(mediana 1,01), e nenhum expoente mudou mais que 0,02. No B\&B em DFS, a
+mediana foi de 0 coletas por execução, e o tempo de CPU com e sem GC
+diferiu menos de 2\%. O GC \emph{não} distorce a complexidade aqui.
+\begin{itemize}
+  \item Os dados grandes vivem em vetores NumPy, que não são rastreados
+    pelo GC.
+  \item O que cria muitos objetos pequenos é o best-first. Na auditoria,
+    desligar o GC aumentou a vazão dele em 2 a 19\%.
+  \item As distorções de memória que pesaram foram \emph{cópias}: a cópia
+    da matriz inteira no vizinho mais próximo (7,7~MiB em $N=1000$,
+    removida) e o grafo completo do NetworkX (49~MiB em $N=500$).
+\end{itemize}
+
+\input{tabelas/gc_expoentes}
+
+\paragraph{Crescimento do B\&B.} Com 10 sementes por $N$ em instâncias
+uniformes (Tabela~\ref{tab:bnbescala}, Figura~\ref{fig:bnbescala}), o
+número de nós da 1-árvore cresce exponencialmente: cada vértice a mais
+multiplica a árvore por 1,54 ($R^2=0{,}986$ no modelo exponencial, contra
+0,952 no polinomial). O Held-Karp é tão apertado em pontos uniformes que,
+até $N=30$, a DFS desce direto ao ótimo (exatamente $N-2$ nós expandidos).
+O crescimento só aparece de $N=35$ em diante e varia muito entre sementes
+(fator ajustado de 1,22, $R^2=0{,}88$). O tempo por nó cresce só como
+$N^{0{,}65\text{--}0{,}76}$, apesar de ser $O(m^3)$ por nó. É o mesmo
+efeito do interpretador visto acima: o Prim em lote tem $m$ iterações
+Python, e a aritmética de cada uma é barata. A memória da DFS ficou em
+140~KiB com $N=50$.
+
+\input{tabelas/bnb_escala}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{bnb_escala}
+\caption{B\&B (DFS, filhos por LB) em instâncias uniformes, 10 sementes por
+$N$; linhas = mediana.}\label{fig:bnbescala}
+\end{figure}
+
+% -------------------------------------------------------------------------
+\subsection{Impacto do warm-start na árvore de busca}\label{sec:warmstart}
+
+Foram 300 execuções: 15 instâncias $\times$ 5 warm-starts $\times$ 4
+configurações. As configurações combinam o limite (Held-Karp ou 1-árvore)
+com a ordem dos filhos na DFS (por LB ou por índice). A
+Tabela~\ref{tab:warmstart} resume os resultados, e a
+Figura~\ref{fig:heatmap} mostra os nós expandidos de cada execução.
+
+\input{tabelas/warmstart_resumo}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{warmstart_heatmap}
+\caption{Nós expandidos ($\log_{10}$) por instância, estratégia e
+configuração. T: estourou 30 minutos.}\label{fig:heatmap}
+\end{figure}
+
+\paragraph{Quando o warm-start importa.} Com filhos visitados por índice, a
+DFS não tem guia: no começo, a única fonte de poda é a incumbente. Nesse
+regime a qualidade do limite superior inicial decide o tamanho da árvore.
+Com Held-Karp e filhos por índice:
+\begin{itemize}
+  \item a solução trivial (gap inicial médio de 152\%) deixou berlin52 e
+    st70 sem terminar em 30~minutos;
+  \item todas as heurísticas resolveram as 15 instâncias;
+  \item a inserção a partir do fecho convexo (gap médio de 2,5\%) expandiu
+    em média 41$\times$ menos nós que a trivial (razão geométrica 0,024), o
+    Christofides 7$\times$ menos (0,136), o vizinho mais próximo 3$\times$
+    e o TATT 2,4$\times$.
+\end{itemize}
+O tempo total das 15 execuções caiu de 5464~s (trivial) para 102~s (fecho).
+Dentro de cada instância, o número de nós acompanha o gap inicial
+(correlação de Spearman média de 0,97). Os perfis por profundidade
+(Figura~\ref{fig:profundidade}) mostram o mecanismo: com um UB bom, a poda
+começa nos níveis rasos, e a árvore nem chega a abrir os ramos ruins.
+
+\paragraph{Quando quase não importa.} Com filhos ordenados por LB, a
+primeira descida da DFS já se comporta como uma heurística gulosa guiada
+pelo limite. Com Held-Karp ela encontra um tour ótimo ou quase ótimo em
+milissegundos, e o UB inicial deixa de ser a fonte principal de poda.
+\begin{itemize}
+  \item As 15 instâncias foram resolvidas com qualquer warm-start, e as
+    razões de nós ficaram entre 0,67 (fecho) e 1,26.
+  \item Um UB inicial melhor pode até \emph{aumentar} a árvore. No
+    dantzig42, a solução trivial é ótima (699) e levou a 190 nós; o vizinho
+    mais próximo levou a 6078. A diferença está no desempate: com outra
+    incumbente, a primeira descida segue outro ramo de mesmo LB.
+\end{itemize}
+Com a 1-árvore, os dois regimes se confundem. O limite é tão fraco (gap de
+10 a 31\% na raiz) que as árvores têm milhões de nós de qualquer forma. As
+razões ficam entre 0,94 e 1,01 com filhos por LB, e entre 0,50 e 0,87 com
+filhos por índice. O teste de Friedman (Tabela~\ref{tab:friedman}) não
+rejeita a igualdade do tempo entre as estratégias com 1-árvore e filhos por
+LB ($p=0{,}10$), e rejeita com folga nas configurações em que o UB
+importa.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{warmstart_profundidade_bayg29}
+\caption{Nós expandidos e podados por profundidade, bayg29 (Held-Karp,
+filhos por índice).}\label{fig:profundidade}
+\end{figure}
+
+\input{tabelas/warmstart_friedman}
+
+\paragraph{O tempo da heurística compensa?} Sim, sempre que o UB importa.
+As heurísticas levaram de 0,08~ms (vizinho mais próximo) a 1,7~ms
+(Christofides, mediana), e no máximo 8,8~ms. Com Held-Karp e filhos por
+índice, a economia de tempo superou o custo da heurística em 13 a 14 das 15
+instâncias, num total de 3400 a 5360~s economizados contra menos de 0,04~s
+gastos. Com filhos por LB, o B\&B inteiro leva dezenas de milissegundos nas
+instâncias pequenas. Aí os 1,7~ms do Christofides chegam a pesar mais que a
+busca, e ele ficou com o pior posto médio de tempo (4,8). O vizinho mais
+próximo é o que melhor equilibra custo e qualidade quando não se sabe a
+ordem dos filhos; o fecho convexo é o melhor em qualidade a um custo ainda
+desprezível (0,5~ms).
+
+\paragraph{Ponto de colapso.} A Tabela~\ref{tab:colapso} mostra onde o
+B\&B exato deixa de terminar em 30~minutos. Com Held-Karp e filhos por LB,
+todas as 15 instâncias foram resolvidas, até o st70, em no máximo 72~s. Com
+filhos por índice, o primeiro timeout foi em $N=52$ (berlin52, só com a
+trivial). Com a 1-árvore, o colapso começa em $N=22$ (ulysses22), e
+nenhuma instância com $N\ge48$ terminou. Entre 22 e 42, ele depende da
+instância: dantzig42 terminou, swiss42 não. Mesmo nesses casos, os
+aproximativos rodam em milissegundos (Seção~\ref{sec:complexidade}).
+
+\input{tabelas/colapso}
+\input{tabelas/bnb_perfil}
+
+% -------------------------------------------------------------------------
+\subsection{Sensibilidade às características das instâncias}\label{sec:sens}
+
+Quinze instâncias são poucas para um modelo com 13 features. Geramos então
+168 instâncias sintéticas \emph{adversariais}, com $N\in\{20,30,40,50\}$ e 6
+sementes, em sete famílias. Cada família estressa uma feature pedida:
+\begin{itemize}
+  \item \emph{uniforme}: a referência;
+  \item \emph{aglomerados}: silhueta alta e Clark-Evans $<1$;
+  \item \emph{grade}: Clark-Evans $>1$ e muitos empates no vizinho mais
+    próximo;
+  \item \emph{anel}: quase todos os pontos no fecho;
+  \item \emph{faixa}: razão de aspecto entre 0,05 e 0,2;
+  \item \emph{núcleo denso e pontos dispersos}: alto CV da distância ao
+    vizinho mais próximo;
+  \item \emph{raios}: hubs na MST.
+\end{itemize}
+O ótimo exato de cada uma veio do B\&B com Held-Karp, com limite de 15~min;
+159 das 168 foram resolvidas, e o gap de cada heurística é exato. O
+índice de Clark-Evans~\cite{clarkevans1954} usa a correção de borda de
+Donnelly~\cite{donnelly1978}. Sem ela, com $N$ pequeno, todas as 15
+instâncias da TSPLIB davam $>1$, até as claramente agrupadas. A base final
+tem 174 instâncias, e os modelos são avaliados por validação cruzada
+(5 partes, 10 repetições).
+
+\input{tabelas/sensibilidade_familias}
+
+\paragraph{Instâncias adversariais.} Cada família estressa as heurísticas
+de um jeito (Tabela~\ref{tab:familias}, Figura~\ref{fig:familias}):
+\begin{itemize}
+  \item \emph{Grade} é a pior para quase todas: o vizinho mais próximo
+    chega a 27\% de gap, e o Christofides a 13\%. Com distâncias quase
+    iguais, as escolhas locais empatam, e os desempates errados se acumulam.
+  \item \emph{Anel} é trivial para todas as heurísticas, menos o TATT (23\%
+    de gap): a MST de pontos num círculo é um caminho, e a pré-ordem a
+    percorre bem, mas a aresta de volta atravessa o anel.
+  \item Para o limite de 1-árvore, as piores são as estruturadas:
+    aglomerados, núcleo com dispersos, faixa e raios, todas com 25 a 28\%
+    de gap na raiz, contra 12\% na uniforme e 5\% na grade. A MST liga os
+    grupos com poucas arestas longas e tem muitas folhas, então fica longe
+    de um caminho hamiltoniano.
+\end{itemize}
+O Held-Karp corrige os graus com as penalidades $\pi$ e fechou essa
+diferença: mediana de 0 a 0,2\% em todas as famílias.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{sensibilidade_familias}
+\caption{Gap por família (instâncias sintéticas com ótimo exato e TSPLIB).}\label{fig:familias}
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.95\textwidth]{sensibilidade_spearman}
+\caption{Correlação de Spearman entre features e gaps nas 174 instâncias.}\label{fig:spearman}
+\end{figure}
+
+\paragraph{Peso das features.} A Figura~\ref{fig:spearman} mostra as
+correlações. Para os modelos, três features com VIF $>10$ foram removidas
+(fração de folhas da MST, CV das arestas da MST e CV das distâncias).
+Sobraram 10 features padronizadas para a regressão múltipla
+(Tabela~\ref{tab:coeficientes}), a árvore de decisão de profundidade 3
+(Figura~\ref{fig:arvore}) e a floresta aleatória~\cite{breiman2001}.
+\begin{itemize}
+  \item \emph{Fração de pontos no fecho convexo.} É a feature mais forte e
+    consistente: um desvio padrão a mais reduz o gap do Christofides em
+    2,2 pontos percentuais e o do vizinho mais próximo em 2,5. Ela também é
+    a primeira divisão das árvores. Com mais de 47\% dos pontos no fecho,
+    o gap médio do Christofides fica abaixo de 0,5\%.
+  \item \emph{Clark-Evans e entropia espacial} pioram o Christofides
+    ($+2{,}1$ cada, $p<0{,}001$). Pontos regulares e espalhados são o caso
+    difícil, como na família grade.
+  \item \emph{Fração de vértices ímpares na MST} pesa no vizinho mais
+    próximo e no TATT ($+3{,}5$ e $+4{,}6$). Ela é proporcional ao tamanho
+    do matching e mede quanto a MST se ramifica. O grau máximo da MST
+    (hubs) tem efeito pequeno: $+0{,}7$ no Christofides, $p=0{,}02$.
+  \item \emph{O gap do limite de 1-árvore na raiz} é o mais previsível
+    ($R^2_{CV}=0{,}83$). Ele cai com a fração no fecho ($-6{,}9$), com $N$
+    e com Clark-Evans, ou seja, é maior em instâncias agrupadas.
+\end{itemize}
+Os gaps das heurísticas são explicados só em parte: o $R^2_{CV}$ fica entre
+0,30 (TATT) e 0,58 (Christofides). O resto depende de detalhes
+combinatórios, como empates e a ordem dos vértices, que as features globais
+não capturam. A árvore de decisão sozinha generaliza pior que a regressão
+(Tabela~\ref{tab:modelos}), mas suas regras são legíveis e coincidem com
+os coeficientes.
+
+\input{tabelas/sensibilidade_coeficientes}
+\input{tabelas/sensibilidade_modelos}
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{arvore_christofides}
+\caption{Árvore de decisão (profundidade 3) para o gap do Christofides;
+valor = gap médio (\%) da folha.}\label{fig:arvore}
+\end{figure}
+
+\paragraph{Por que a 1-árvore falhou no ulysses22.} O ulysses22 é o menor
+$N$ em que o B\&B com 1-árvore estourou 30~minutos. Ele tem o maior CV da
+distância ao vizinho mais próximo da TSPLIB (1,63; a mediana é 0,60) e um
+dos maiores gaps de 1-árvore na raiz (30,6\%, igual ao do ulysses16 e
+contra 9,6 a 19,7\% das instâncias com $N\ge24$). Os pontos são ilhas e
+cidades do Mediterrâneo: grupos densos separados por grandes distâncias.
+Nessa geometria, a MST junta cada grupo com arestas curtas e liga os grupos
+com poucas arestas longas. Muitos vértices ficam com grau diferente de 2, e
+a árvore está longe de um tour. O limite fica muito abaixo do ótimo em
+todos os níveis, e quase nada é podado: foram de 44 a 57 milhões de nós
+expandidos em 30~minutos, conforme a estratégia. O Held-Karp penaliza exatamente esses graus, deixou o gap na
+raiz em 0,00\% e resolveu a instância com 20 nós.

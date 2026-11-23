@@ -1,0 +1,28 @@
+\begin{abstract}
+We implement, audit, refactor and empirically profile an exact Branch-and-Bound
+(B\&B) solver alongside the Twice-around-the-tree and Christofides approximation
+algorithms for the Geometric Traveling Salesperson Problem across 15 TSPLIB
+instances and 159 synthetic adversarial instances with known exact optima.
+Subroutine-level profiling reveals that blossom matching grows as $N^{2.89}$ and
+dominates Christofides, whereas vectorized $O(n^2)$ routines scale as $N^{1.2}$
+due to Python interpreter overhead; disabling garbage collection did not alter
+any fitted complexity exponent. Under blind child ordering, the convex-hull
+insertion warm-start reduced expanded nodes by 41 times relative to the trivial
+tour. The 1-tree lower bound collapses at $N=22$, while Held-Karp solves every
+instance in the test suite. Finally, the fraction of points on the convex hull
+is the strongest geometric predictor of the approximation gap.
+\end{abstract}
+
+\begin{resumo}
+Implementamos, auditamos, refatoramos e instrumentamos em nível de subrotina um
+Branch-and-Bound (B\&B) exato e os algoritmos aproximados Twice-around-the-tree
+e Christofides para o Problema do Caixeiro Viajante Geométrico em 15 instâncias
+da TSPLIB e 159 instâncias sintéticas adversariais com ótimo exato conhecido. O
+emparelhamento blossom cresce como $N^{2{,}89}$ e domina o custo do Christofides,
+enquanto rotinas $O(n^2)$ vetorizadas comportam-se como $N^{1{,}2}$ pelo custo
+fixo do interpretador Python; desligar o coletor de lixo não alterou nenhum
+expoente ajustado. Com ordenação cega de filhos, o warm-start do fecho convexo
+expandiu 41 vezes menos nós que a solução trivial. O limite de 1-árvore colapsa
+em $N=22$, enquanto Held-Karp resolve todas as instâncias. A fração de pontos
+no fecho convexo é a característica geométrica que mais explica o gap.
+\end{resumo}
