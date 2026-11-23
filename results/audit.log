@@ -1,0 +1,57 @@
+children_mst m=  5 sequential t=     72.3us
+children_mst m=  5 batched    t=     28.5us
+children_mst m=  5 leaf_shortcut t=     55.1us
+children_mst m= 10 sequential t=    247.4us
+children_mst m= 10 batched    t=     38.7us
+children_mst m= 10 leaf_shortcut t=     79.5us
+children_mst m= 20 sequential t=    955.7us
+children_mst m= 20 batched    t=     79.7us
+children_mst m= 20 leaf_shortcut t=    147.3us
+children_mst m= 40 sequential t=   4029.7us
+children_mst m= 40 batched    t=    197.0us
+children_mst m= 40 leaf_shortcut t=    294.7us
+children_mst m= 70 sequential t=  12959.6us
+children_mst m= 70 batched    t=    507.6us
+children_mst m= 70 leaf_shortcut t=    643.7us
+approx gr24         naive_tatt           t=  0.0004s mem=    0.13 MiB
+approx gr24         tatt                 t=  0.0001s mem=    0.01 MiB
+approx gr24         naive_christofides   t=  0.0014s mem=    0.21 MiB
+approx gr24         christofides         t=  0.0007s mem=    0.05 MiB
+approx att48        naive_tatt           t=  0.0013s mem=    0.46 MiB
+approx att48        tatt                 t=  0.0001s mem=    0.01 MiB
+approx att48        naive_christofides   t=  0.0099s mem=    0.68 MiB
+approx att48        christofides         t=  0.0070s mem=    0.18 MiB
+approx st70         naive_tatt           t=  0.0027s mem=    0.90 MiB
+approx st70         tatt                 t=  0.0002s mem=    0.02 MiB
+approx st70         naive_christofides   t=  0.0114s mem=    1.11 MiB
+approx st70         christofides         t=  0.0081s mem=    0.23 MiB
+approx random200    naive_tatt           t=  0.0227s mem=    7.78 MiB
+approx random200    tatt                 t=  0.0006s mem=    0.03 MiB
+approx random200    naive_christofides   t=  0.1557s mem=    7.78 MiB
+approx random200    christofides         t=  0.1175s mem=    1.09 MiB
+approx random500    naive_tatt           t=  0.1700s mem=   48.94 MiB
+approx random500    tatt                 t=  0.0019s mem=    0.07 MiB
+approx random500    naive_christofides   t=  2.5517s mem=   48.94 MiB
+approx random500    christofides         t=  2.2215s mem=    8.86 MiB
+bnb burma14    naive_bestfirst_twomin       optimal  exp=   483341 t=   18.13s mem=   101.2 MiB (259 B/nó aberto)
+bnb burma14    naive_bestfirst_twomin_semgc optimal  exp=   483341 t=   17.78s mem=   101.3 MiB (260 B/nó aberto)
+bnb burma14    bestfirst_twomin             optimal  exp=   237333 t=    3.66s mem=    98.1 MiB (273 B/nó aberto)
+bnb burma14    bestfirst_twomin_semgc       optimal  exp=   237333 t=    3.46s mem=    98.1 MiB (273 B/nó aberto)
+bnb burma14    dfs_twomin                   optimal  exp=   278533 t=    3.35s mem=     0.0 MiB
+bnb burma14    dfs_onetree                  optimal  exp=     7772 t=    0.24s mem=     0.0 MiB
+bnb burma14    dfs_hk                       optimal  exp=       12 t=    0.00s mem=     0.0 MiB
+bnb ulysses16  naive_bestfirst_twomin       memout   exp=   337320 t=   27.26s mem=   104.0 MiB (257 B/nó aberto)
+bnb ulysses16  naive_bestfirst_twomin_semgc memout   exp=   337320 t=   25.18s mem=   103.9 MiB (257 B/nó aberto)
+bnb ulysses16  bestfirst_twomin             memout   exp=   311106 t=    6.84s mem=   365.7 MiB (268 B/nó aberto)
+bnb ulysses16  bestfirst_twomin_semgc       memout   exp=   311106 t=    5.75s mem=   368.4 MiB (268 B/nó aberto)
+bnb ulysses16  dfs_twomin                   timeout  exp=  2497158 t=   30.00s mem=     0.0 MiB
+bnb ulysses16  dfs_onetree                  timeout  exp=  1092828 t=   30.00s mem=     0.0 MiB
+bnb ulysses16  dfs_hk                       optimal  exp=       14 t=    0.01s mem=     0.0 MiB
+bnb gr17       naive_bestfirst_twomin       timeout  exp=   327115 t=   30.42s mem=    94.9 MiB (260 B/nó aberto)
+bnb gr17       naive_bestfirst_twomin_semgc timeout  exp=   347969 t=   30.45s mem=    95.2 MiB (260 B/nó aberto)
+bnb gr17       bestfirst_twomin             memout   exp=   419819 t=    8.89s mem=   323.4 MiB (270 B/nó aberto)
+bnb gr17       bestfirst_twomin_semgc       memout   exp=   419819 t=    7.72s mem=   322.0 MiB (270 B/nó aberto)
+bnb gr17       dfs_twomin                   timeout  exp=  2426378 t=   30.00s mem=     0.0 MiB
+bnb gr17       dfs_onetree                  optimal  exp=   293064 t=   10.62s mem=     0.0 MiB
+bnb gr17       dfs_hk                       optimal  exp=       15 t=    0.00s mem=     0.0 MiB
+-> results/audit.csv

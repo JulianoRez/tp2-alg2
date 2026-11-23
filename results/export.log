@@ -1,0 +1,10 @@
+1_warmstart        60 linhas x  20 colunas
+2_bnb             300 linhas x  33 colunas
+3_heuristicas      90 linhas x  35 colunas
+4_instancias       15 linhas x  31 colunas
+8_bnb_sem_gc       75 linhas x  33 colunas
+5_escala          141 linhas x  33 colunas
+6_escala_bnb      190 linhas x  18 colunas
+5b_escala_sem_gc  141 linhas x  31 colunas
+9_sinteticas      168 linhas x  55 colunas
+7_auditoria        56 linhas x  15 colunas
