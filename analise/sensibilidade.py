@@ -1,11 +1,5 @@
-"""Seção 3 do enunciado: sensibilidade do gap às características das instâncias.
-
-Base: 15 instâncias da TSPLIB + instâncias sintéticas adversariais
-(results/synthetic.csv, tsp/synthetic.py), todas com ótimo exato conhecido.
-Modelos: correlação de Spearman, regressão linear múltipla com variáveis
-padronizadas (coeficientes comparáveis = "peso" de cada feature), árvore de
-decisão (regras legíveis) e floresta aleatória (importância por permutação,
-captura relações não lineares). Desempenho medido por validação cruzada.
+"""Sensibilidade do gap às features (TSPLIB + sintéticas com ótimo exato):
+Spearman, regressão múltipla padronizada, árvore de decisão e floresta aleatória.
 """
 from __future__ import annotations
 
@@ -51,7 +45,6 @@ def carrega() -> pd.DataFrame:
     sy["log_prova_1arvore"] = np.where(
         sy.get("onetree_prove_status", pd.Series(index=sy.index)).eq("optimal"),
         np.log10(sy.onetree_prove_nodes.fillna(0) + 1), np.nan)
-    # TSPLIB: features + gaps das heurísticas + gap do limite na raiz
     f = pd.read_csv(RES / "features.csv")
     runs = [json.loads(line) for line in (RES / "runs.jsonl").open() if line.strip()]
     r = pd.DataFrame(runs)
@@ -83,7 +76,7 @@ def vif(X: pd.DataFrame) -> pd.Series:
 
 
 def seleciona_vif(X: pd.DataFrame, limite: float = 10.0) -> tuple[list[str], list[str]]:
-    """Remove iterativamente a feature com maior VIF até todas ficarem < limite."""
+    """Remove a feature de maior VIF até todas ficarem abaixo do limite."""
     cols, removidas = list(X.columns), []
     while True:
         v = vif(X[cols])
@@ -116,7 +109,7 @@ def modelos(df: pd.DataFrame, cols: list[str]) -> tuple[pd.DataFrame, pd.DataFra
         d = df.dropna(subset=[alvo] + cols)
         if len(d) < 20:
             continue
-        usadas = [c for c in cols if d[c].nunique() > 1]   # ex.: N é constante em N = 20
+        usadas = [c for c in cols if d[c].nunique() > 1]   # N é constante no alvo de N = 20
         X, y = d[usadas], d[alvo] * (100 if alvo.startswith(("gap", "root")) else 1)
         Xs = StandardScaler().fit_transform(X)
         lin = LinearRegression().fit(Xs, y)
@@ -205,7 +198,6 @@ def fig_arvores(arvores: dict):
 
 
 def fig_dispersao(df: pd.DataFrame):
-    """As relações mais fortes em gráfico (cor = família)."""
     pares = [("hull_fraction", "gap_nn"), ("mst_odd_fraction", "gap_christofides_blossom"),
              ("clark_evans", "root_gap_onetree")]
     fams = [f for f in FAMILIA_ROTULO if f in set(df.family)]

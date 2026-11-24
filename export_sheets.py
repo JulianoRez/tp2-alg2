@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""Gera tabelas prontas para planilha a partir dos resultados (results/planilha/*.csv).
-
-Não calcula nada novo: só seleciona colunas, converte unidades (ms, MiB) e
-reorganiza os dados de runs.jsonl / features.csv / scaling*.csv / audit.csv.
-
-    1_warmstart.csv    B&B em formato largo: uma linha por instância x configuração,
-                       uma coluna por estratégia de warm-start (nós expandidos e tempo)
-    2_bnb.csv          uma linha por execução do B&B
-    3_heuristicas.csv  uma linha por execução de heurística/aproximativo
-    4_instancias.csv   features de cada instância + gap de cada heurística
-    5_escala.csv       profiling em instâncias aleatórias (profile_scaling.py)
-    6_escala_bnb.csv   B&B em instâncias aleatórias (profile_scaling.py --bnb-sizes)
-    7_auditoria.csv    código bruto x refatorado (audit_naive.py)
-    5b_escala_sem_gc.csv, 8_bnb_sem_gc.csv   as mesmas medições com o GC desligado
-    9_sinteticas.csv   instâncias sintéticas adversariais (run_synthetic.py)
-"""
+"""Tabelas para a planilha (results/planilha/*.csv), a partir dos resultados brutos."""
 from __future__ import annotations
 
 import json
@@ -92,7 +77,7 @@ SECTIONS = ["mst", "preorder", "odd_vertices", "matching_build", "matching_solve
 
 
 def time_mem_columns(df: pd.DataFrame) -> list[str]:
-    """Cria colunas em ms (tempos) e KiB (memória) e devolve seus nomes, na ordem."""
+    """Cria colunas em ms (tempos) e KiB (memória) e devolve seus nomes."""
     df["time_total_ms"] = df.time_total * MS
     df["time_min_ms"] = df.time_total_min * MS
     cols = ["time_total_ms", "time_min_ms"]

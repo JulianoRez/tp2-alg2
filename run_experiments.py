@@ -1,28 +1,12 @@
 #!/usr/bin/env python3
-"""Roda a matriz completa de experimentos (retomável) e gera os CSVs.
+"""Roda a matriz de experimentos (retomável), um subprocesso run_one.py por execução.
 
-Saídas (em results/):
-    features.csv   features geométricas/topológicas de cada instância
-    runs.jsonl     um registro JSON por execução (fonte da verdade, inclui tours)
-    runs.csv       o mesmo em tabela (listas viram texto JSON; sem os tours)
-    errors.log     execuções que falharam (são tentadas de novo na próxima vez)
+Saídas em results/: features.csv, runs.jsonl (inclui os tours), runs.csv e
+errors.log. Execuções já registradas em runs.jsonl são puladas.
 
-Cada execução roda em um subprocesso (`run_one.py`): isola a medição de
-memória (pico RSS por processo) e garante o limite de 30 min mesmo se algo
-travar (o B&B já para sozinho no limite e devolve as estatísticas parciais;
-o subprocesso só é morto se passar do limite + 5 min de margem).
-
-Exemplos:
-    python run_experiments.py --dry-run                  # lista o que vai rodar
-    python run_experiments.py --workers 6                # tudo, 6 processos em paralelo
-    python run_experiments.py --no-bnb                   # só heurísticas/aproximativos
-    python run_experiments.py --configs hk:index --starts nn hull
-    python run_experiments.py --csv-only                 # só regenera runs.csv
-
-Se interromper (Ctrl+C), rode de novo: execuções já registradas são puladas.
-Paralelismo: cada processo usa 1 núcleo; usar mais workers que núcleos
-físicos distorce os tempos. Os tempos de heurísticas são curtos e sensíveis a
-ruído: se quiser medições limpas, rode-os com --workers 1 --no-bnb.
+    python run_experiments.py --dry-run
+    python run_experiments.py --no-bnb --workers 1
+    python run_experiments.py --no-heuristics --configs hk:bound --workers 4
 """
 from __future__ import annotations
 
@@ -116,8 +100,7 @@ def load_done(jsonl: Path) -> set[tuple]:
 
 
 def write_features(instances: list[str], args, out: Path) -> dict[str, int]:
-    """Calcula as features e ATUALIZA features.csv (rodar com um subconjunto
-    de instâncias não apaga as linhas das outras)."""
+    """Calcula as features e atualiza features.csv sem apagar as outras instâncias."""
     rows, sizes = [], {}
     for name in instances:
         inst = load_instance(find_instance(name, args.data_dir))
@@ -133,8 +116,7 @@ def write_features(instances: list[str], args, out: Path) -> dict[str, int]:
 
 
 def build_csv(jsonl: Path, csv: Path):
-    """runs.jsonl -> runs.csv. Uma configuração repetida fica só com o último
-    registro; custo de execução sem ótimo (timeout) sai como NA."""
+    """runs.jsonl -> runs.csv: mantém o último registro de cada configuração; timeout vira NA."""
     if not jsonl.exists():
         return
     rows = {}

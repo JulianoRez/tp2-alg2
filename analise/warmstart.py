@@ -1,8 +1,4 @@
-"""Seção 2 do enunciado: impacto do warm-start na árvore do Branch-and-Bound.
-
-Entrada: results/runs.jsonl (300 execuções de B&B na TSPLIB: 15 instâncias x
-5 warm-starts x 4 configurações de limite/ordem dos filhos, DFS, 30 min).
-"""
+"""Impacto do warm-start no B&B (results/runs.jsonl)."""
 from __future__ import annotations
 
 import json
@@ -38,7 +34,7 @@ def resumo(b: pd.DataFrame) -> pd.DataFrame:
     linhas = []
     for (bound, order) in CONFIGS:
         d = b[(b.bound == bound) & (b.child_order == order)]
-        # conjunto comum: instâncias que TODAS as estratégias resolveram
+        # instâncias que todas as estratégias resolveram
         comuns = d.groupby("instance").resolvido.all()
         comuns = comuns[comuns].index
         triv = d[d.start == "trivial"].set_index("instance")
@@ -62,9 +58,9 @@ def resumo(b: pd.DataFrame) -> pd.DataFrame:
 
 
 def friedman(b: pd.DataFrame) -> pd.DataFrame:
-    """Teste de Friedman (blocos = instâncias) sobre o tempo (timeout = 1800 s,
-    o teste usa só postos, então a censura não atrapalha) e sobre os nós
-    expandidos no conjunto comum. Também o posto médio de cada estratégia."""
+    """Teste de Friedman por configuração (blocos = instâncias), sobre o tempo
+    (timeout = 1800 s; o teste só usa postos) e sobre os nós no conjunto comum.
+    """
     linhas = []
     for (bound, order) in CONFIGS:
         d = b[(b.bound == bound) & (b.child_order == order)]
@@ -86,8 +82,7 @@ def friedman(b: pd.DataFrame) -> pd.DataFrame:
 
 
 def tradeoff(b: pd.DataFrame) -> pd.DataFrame:
-    """O tempo da heurística compensa? Economia = tempo do B&B com a solução
-    trivial - tempo com a heurística (ambos incluindo a heurística)."""
+    """Economia de tempo de cada heurística em relação à solução trivial."""
     linhas = []
     for (bound, order) in CONFIGS:
         d = b[(b.bound == bound) & (b.child_order == order)]
@@ -112,7 +107,7 @@ def correlacoes(b: pd.DataFrame) -> pd.DataFrame:
     linhas = []
     for (bound, order) in CONFIGS:
         d = b[(b.bound == bound) & (b.child_order == order) & b.resolvido]
-        # dentro de cada instância: gap inicial x nós (tira o efeito do tamanho)
+        # dentro de cada instância, para tirar o efeito do tamanho
         rhos = []
         for _, g in d.groupby("instance"):
             if g.initial_gap.nunique() > 2 and g.nodes_expanded.nunique() > 1:
@@ -184,7 +179,6 @@ def fig_gap_vs_nos(b: pd.DataFrame):
 
 
 def colapso(b: pd.DataFrame) -> pd.DataFrame:
-    """Maior N resolvido por configuração e onde o B&B começa a estourar 30 min."""
     linhas = []
     for (bound, order) in CONFIGS:
         d = b[(b.bound == bound) & (b.child_order == order)]
@@ -201,7 +195,6 @@ def colapso(b: pd.DataFrame) -> pd.DataFrame:
 
 
 def perfil_tempo(b: pd.DataFrame) -> pd.DataFrame:
-    """Onde o B&B gasta o tempo (profiling por subrotina)."""
     g = b.assign(f_heur=b.time_heuristic / b.time_total,
                  f_raiz=b.time_root_bound / b.time_total,
                  f_filhos=b.time_child_bounds / b.time_total,
@@ -245,7 +238,6 @@ def tabelas_latex(res: pd.DataFrame, fr: pd.DataFrame, to: pd.DataFrame, col: pd
             })
         linhas.append({k: ("\\midrule" if k == "Configuração" else "") for k in linhas[-1]})
     t = pd.DataFrame(linhas[:-1])
-    # \midrule como linha separadora
     tex_rows = []
     for _, r in t.iterrows():
         if r["Configuração"] == "\\midrule":
@@ -294,7 +286,6 @@ def _tabela_com_regras(rows, cols, nome, legenda, rotulo, alinhamento):
 
 
 def gc_bnb() -> pd.DataFrame:
-    """B&B Held-Karp (filhos por LB) com e sem GC, mesmas condições (4 processos)."""
     rows = [json.loads(line) for line in (RES / "runs.jsonl").open() if line.strip()]
     r = pd.DataFrame([x for x in rows if x["algo"] == "bnb" and x["bound"] == "hk"
                       and x["child_order"] == "bound"])
@@ -332,7 +323,6 @@ def roda():
     fig_profundidade(b, "gr24", "onetree", "index", "warmstart_profundidade_gr24")
     tabelas_latex(res, fr, to, col)
     tabela_perfil(pt)
-    # números para o texto
     for _, r in res.iterrows():
         numero(f"ws_{r.bound}_{r.child_order}_{r.start}_razao", r.razao_nos_vs_trivial_geo)
         numero(f"ws_{r.bound}_{r.child_order}_{r.start}_resolvidas", r.resolvidas)

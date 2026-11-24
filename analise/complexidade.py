@@ -1,8 +1,4 @@
-"""Seção 1 do enunciado: profiling por subrotina e complexidade empírica.
-
-Entradas: results/scaling.csv (GC ligado), results/scaling_nogc.csv (GC
-desligado), results/scaling_bnb_hk.csv e results/scaling_bnb_onetree.csv.
-"""
+"""Complexidade empírica: ajustes de tempo e memória por subrotina, GC e crescimento do B&B."""
 from __future__ import annotations
 
 import numpy as np
@@ -11,7 +7,6 @@ import pandas as pd
 from .comum import (ANALISE, MODELO_TEX, RES, ajuste_modelo, ajuste_potencia, fmt_num,
                     melhor_modelo, numero, plt, salva_fig, tabela_latex)
 
-# subrotinas medidas por algoritmo e a complexidade teórica de cada uma
 SECOES = {
     "nn": ["nn"],
     "hull": ["hull"],
@@ -114,7 +109,6 @@ def fig_tempo(sc: pd.DataFrame):
     d = med[med.algo == "christofides"]
     for sec in SECOES["christofides"]:
         ax.loglog(d.n, d[f"time_{sec}"] * 1e3, "o-", ms=3, lw=1, label=SEC_NOME[sec])
-    # retas de referência
     n0 = d.n.values
     for k, ls in ((2, ":"), (3, "--")):
         ref = d.time_matching_solve.values[-1] * 1e3 * (n0 / n0[-1]) ** k
@@ -143,7 +137,6 @@ def fig_memoria(sc: pd.DataFrame):
 
 
 def fig_participacao(sc: pd.DataFrame):
-    """Fração do tempo do Christofides em cada subrotina, por N."""
     med = _mediana(sc)
     d = med[med.algo == "christofides"].sort_values("n")
     secs = SECOES["christofides"]
@@ -181,7 +174,6 @@ def gc_analise(on: pd.DataFrame, off: pd.DataFrame) -> pd.DataFrame:
     ax.set_ylabel("tempo com GC / sem GC")
     ax.legend(frameon=False, fontsize=6)
     salva_fig(fig, "gc_razao")
-    # expoentes com e sem GC (o GC muda a curva?)
     linhas = []
     for algo in SECOES:
         for nome, df in (("gc", on), ("sem_gc", off)):
@@ -205,7 +197,7 @@ def gc_analise(on: pd.DataFrame, off: pd.DataFrame) -> pd.DataFrame:
 
 
 def bnb_escala() -> pd.DataFrame:
-    """Crescimento do B&B em instâncias aleatórias: exponencial x polinomial."""
+    """Crescimento do B&B em instâncias uniformes: ajuste exponencial x polinomial."""
     from scipy import stats
     linhas, dados = [], {}
     for bound in ("hk", "onetree"):
@@ -221,8 +213,8 @@ def bnb_escala() -> pd.DataFrame:
         tot = d.groupby("n").size()
         med["total"] = med.n.map(tot)
         y = np.log10(np.maximum(med.nos.values, 1))
-        ex = stats.linregress(med.n, y)                       # log N_nós = a + b n
-        po = stats.linregress(np.log10(med.n), y)              # log N_nós = a + b log n
+        ex = stats.linregress(med.n, y)                       # exponencial
+        po = stats.linregress(np.log10(med.n), y)              # polinomial
         tpn = ok[ok.nodes_expanded > 0]
         tpn = tpn.assign(tpn=tpn.time_child_bounds / tpn.nodes_expanded)
         tp = ajuste_potencia(tpn.n, tpn.tpn)

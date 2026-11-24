@@ -1,20 +1,7 @@
-"""Instâncias sintéticas "adversariais" (EUC_2D) para a análise de sensibilidade.
+"""Instâncias sintéticas EUC_2D em [0, 10000]^2 para a análise de sensibilidade.
 
-Com só 15 instâncias da TSPLIB, um modelo que relaciona ~20 features ao gap
-das heurísticas tem mais variáveis do que pontos. Estas famílias geram
-instâncias com características controladas, cada uma pensada para estressar
-uma feature pedida no enunciado:
-
-    uniform        pontos uniformes no quadrado (referência)
-    cluster        3 a 6 aglomerados gaussianos (silhueta alta, Clark-Evans < 1)
-    grid           grade regular com pequeno ruído (Clark-Evans > 1, NN empata muito)
-    circle         pontos num anel (quase todos no fecho convexo)
-    strip          faixa estreita (razão de aspecto 0,05 a 0,2)
-    core_outliers  núcleo denso + 20% de pontos espalhados (CV do vizinho mais próximo alto)
-    spokes         pontos sobre 5 a 8 raios a partir do centro (hubs na MST)
-
-Coordenadas em [0, 10000]^2 e distância EUC_2D oficial da TSPLIB (nint), como
-nas instâncias reais. Tudo é determinístico dado (família, n, semente).
+Famílias: uniform, cluster (aglomerados), grid, circle (anel), strip (faixa
+estreita), core_outliers (núcleo denso + 20% dispersos) e spokes (raios).
 """
 from __future__ import annotations
 
@@ -29,7 +16,7 @@ FAMILIES = ("uniform", "cluster", "grid", "circle", "strip", "core_outliers", "s
 
 
 def _rng(family: str, n: int, seed: int) -> np.random.Generator:
-    # semente estável entre execuções (hash() do Python é aleatorizado por processo)
+    # hash() do Python muda a cada processo; crc32 não
     return np.random.default_rng([zlib.crc32(family.encode()), n, seed])
 
 
@@ -70,7 +57,7 @@ def _points(family: str, n: int, rng: np.random.Generator) -> np.ndarray:
 
 def make_instance(family: str, n: int, seed: int) -> Instance:
     P = _points(family, n, _rng(family, n, seed))
-    P = np.round(P, 1)                      # como nos arquivos da TSPLIB
+    P = np.round(P, 1)
     D = dist_euc_2d(P)
     np.fill_diagonal(D, 0)
     return Instance(name=f"{family}_n{n}_s{seed}", n=n, edge_weight_type="EUC_2D",

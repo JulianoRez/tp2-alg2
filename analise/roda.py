@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Roda toda a análise: figuras (relatorio/figuras), tabelas LaTeX
-(relatorio/tabelas), CSVs para a planilha (results/analise) e os números
-citados no texto (results/analise/numeros.json).
+"""Roda toda a análise: figuras e tabelas do artigo e CSVs em results/analise.
 
     python -m analise.roda
 """

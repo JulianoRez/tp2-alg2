@@ -1,9 +1,5 @@
-"""Testes de corretude.  Rodar com:  python -m pytest -q
-
-Estratégia: comparar com referências independentes —
-  * ótimos publicados pela TSPLIB e os arquivos .opt.tour oficiais;
-  * força bruta (todas as permutações) em instâncias pequenas aleatórias;
-  * SciPy (MST e fecho convexo) como implementação de referência.
+"""Testes de corretude (python -m pytest -q): ótimos e tours publicados da
+TSPLIB, força bruta em instâncias pequenas e SciPy como referência.
 """
 import itertools
 import sys
@@ -44,8 +40,6 @@ def brute_force(D):
 def is_tour(t, n):
     return sorted(t) == list(range(n))
 
-
-# ----------------------------------------------------------------- TSPLIB
 @pytest.mark.parametrize("tour_file", sorted(DATA.glob("*.opt.tour.gz")),
                          ids=lambda p: p.name.split(".")[0])
 def test_opt_tour_matches_published_optimum(tour_file):
@@ -73,8 +67,6 @@ def test_explicit_formats(fmt):
     w = [M[i, j] for i, j in order]
     assert np.array_equal(_explicit_matrix(n, fmt, w), M)
 
-
-# -------------------------------------------------------------------- MST
 @pytest.mark.parametrize("seed", range(5))
 def test_prim_matches_scipy(seed):
     _, D = euclid(40, seed, integer=False)
@@ -110,8 +102,6 @@ def test_mst_without_each_vertex():
             exp = prim(S[np.ix_(idx, idx)])[1] if len(idx) > 1 else 0.0
             assert got[c] == pytest.approx(exp)
 
-
-# ------------------------------------------------------------- heurísticas
 @pytest.mark.parametrize("seed", range(5))
 def test_convex_hull_matches_scipy(seed):
     P, _ = euclid(60, seed, integer=False)
@@ -135,12 +125,9 @@ def test_nearest_neighbor_first_step():
     t = nearest_neighbor_tour(D)
     assert D[0, t[1]] == Dinf[0].min() or D[0, t[-1]] == Dinf[0].min()
 
-
-# ---------------------------------------------------------- aproximativos
 @pytest.mark.parametrize("seed", range(15))
 def test_approximation_guarantees(seed):
-    """Em métrica exata (euclidiana sem arredondamento): TATT <= 2 OPT e
-    Christofides <= 1.5 OPT."""
+    """Em métrica exata: TATT <= 2 OPT e Christofides <= 1,5 OPT."""
     _, D = euclid(8, seed, integer=False)
     opt = brute_force(D)
     assert tour_cost(D, twice_around_the_tree(D)) <= 2 * opt + 1e-6
@@ -176,8 +163,6 @@ def test_eulerian_circuit_uses_each_edge_once():
     used = sorted(tuple(sorted(e)) for e in zip(circ, circ[1:]))
     assert used == sorted(tuple(sorted(e)) for e in edges)
 
-
-# ----------------------------------------------------------- Branch&Bound
 @pytest.mark.parametrize("seed", range(12))
 def test_bnb_matches_brute_force(seed):
     n = 4 + seed % 5
@@ -201,8 +186,7 @@ def test_bnb_matches_brute_force(seed):
 
 @pytest.mark.parametrize("seed", range(6))
 def test_bnb_non_integer_distances(seed):
-    """Com distâncias reais (sem arredondar) o B&B não pode arredondar a
-    incumbente: um tour de 10,4 virando 10 podaria o ótimo de 10,2."""
+    """Com distâncias reais, o B&B não pode arredondar a incumbente."""
     n = 5 + seed % 4
     _, D = euclid(n, seed, integer=False)
     opt = min(float(D[np.array((0,) + p), np.roll(np.array((0,) + p), -1)].sum())
@@ -261,8 +245,6 @@ def test_naive_bnb_matches_optimum():
         assert naive_bnb(D)["cost"] == opt
         assert naive_bnb(D, initial_tour=nearest_neighbor_tour(D))["cost"] == opt
 
-
-# --------------------------------------------------------------- features
 def test_features_ranges():
     P, D = euclid(30, 0, integer=False)
     inst = Instance("rnd", 30, "EUC_2D", D, P, "node_coord")
@@ -275,8 +257,7 @@ def test_features_ranges():
 
 
 def test_clark_evans_detects_patterns():
-    """~1 em pontos uniformes, > 1 em grade, < 1 em aglomerados (com a
-    correção de borda; sem ela até instâncias agrupadas davam > 1)."""
+    """~1 em pontos uniformes, > 1 em grade, < 1 em aglomerados."""
     from tsp.synthetic import make_instance
     def ce(fam, seeds=range(4), n=50):
         return np.mean([instance_features(make_instance(fam, n, s))["clark_evans"] for s in seeds])

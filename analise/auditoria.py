@@ -1,4 +1,4 @@
-"""Auditoria: código "bruto" (tsp/naive.py) x refatorado (results/audit.csv)."""
+"""Auditoria: código ingênuo x refatorado (results/audit.csv)."""
 from __future__ import annotations
 
 import numpy as np
@@ -24,7 +24,6 @@ def roda():
     a = pd.read_csv(RES / "audit.csv")
     a["mem_mib"] = a.mem_peak / 2 ** 20
 
-    # 1) MST de cada filho
     c = a[a.experiment == "children_mst"].pivot(index="n", columns="variant", values="time") * 1e6
     c.to_csv(ANALISE / "auditoria_children_mst.csv")
     fig, ax = plt.subplots(figsize=(3.3, 2.4))
@@ -42,7 +41,6 @@ def roda():
         numero("aud_folhas_vs_lote_min", float((c.leaf_shortcut / c.batched).min()))
         numero("aud_folhas_vs_lote_max", float((c.leaf_shortcut / c.batched).max()))
 
-    # 2) aproximativos
     ap = a[a.experiment == "approx"]
     linhas = []
     for case, g in ap.groupby("case", sort=False):
@@ -75,7 +73,6 @@ def roda():
         numero(f"aud_{r.algoritmo}_speedup_nmax", float(r.speedup))
         numero(f"aud_{r.algoritmo}_redmem_nmax", float(r.reducao_mem))
 
-    # 3) B&B
     b = a[a.experiment == "bnb"].copy()
     b.to_csv(ANALISE / "auditoria_bnb.csv", index=False)
     t = pd.DataFrame({

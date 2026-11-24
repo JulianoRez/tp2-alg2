@@ -1,30 +1,6 @@
-"""Versões "brutas" (estilo código gerado sem revisão) — LINHA DE BASE.
-
-NÃO são usadas nos experimentos principais. Existem só para a auditoria
-(audit_naive.py): medir, com profiling, o que as refatorações ganharam.
-
-Problemas típicos reproduzidos aqui (e como foram resolvidos na versão final):
-
-naive_bnb
-  1. Best-first com heap guardando CÓPIAS do caminho em cada nó aberto: a
-     fila cresce exponencialmente -> estouro de memória.
-     -> versão final: DFS recursiva com um único caminho/vetor de visitados
-        mutado no lugar (memória O(n^2)).
-  2. `v not in path` em lista: O(n) por teste.  -> vetor booleano `visited`.
-  3. Limite inferior recalculado do zero em Python puro, O(n^2) por nó, com
-     o limite fraco das "duas menores arestas".
-     -> limites 1-árvore/Held-Karp calculados para todos os filhos de uma vez
-        com NumPy (mst_without_each_vertex).
-
-naive_christofides / naive_tatt
-  1. Monta o grafo completo no NetworkX: n(n-1)/2 arestas como dicionários
-     Python (~centenas de bytes por aresta) só para rodar uma MST.
-     -> Prim O(n^2) direto sobre a matriz NumPy.
-  2. Matching sobre `G.subgraph(odd)` + `min_weight_matching`, que copia o
-     subgrafo inteiro de novo para inverter os pesos.
-     -> monta só o grafo dos vértices ímpares já com pesos invertidos.
-  3. MultiGraph + nx.eulerian_circuit (objetos pesados).
-     -> Hierholzer com listas de adjacência.
+"""Versões ingênuas (estilo de código gerado sem revisão), usadas só como linha
+de base em audit_naive.py: best-first com cópia do caminho, `in` em lista e
+limite recalculado em Python puro; TATT/Christofides no grafo completo do NetworkX.
 """
 from __future__ import annotations
 
@@ -39,7 +15,6 @@ from .mst import prim
 
 
 def _naive_bound(D, path, n):
-    """Limite das 2 menores arestas, recalculado do zero (O(n^2) em Python)."""
     total = 0
     for v in range(n):
         if v in path:
@@ -67,9 +42,7 @@ def _naive_bound(D, path, n):
 
 def naive_bnb(D: np.ndarray, time_limit: float = 60.0, max_open: int = 2_000_000,
               initial_tour: list[int] | None = None) -> dict:
-    """`initial_tour` e `max_open` iguais aos da versão refatorada na auditoria,
-    para que a comparação isole as refatorações (e não o warm-start)."""
-    D = D.tolist()            # lista de listas, como o código bruto costuma fazer
+    D = D.tolist()
     n = len(D)
     t0 = time.perf_counter()
     best_cost, best_path = math.inf, None

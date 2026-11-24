@@ -1,23 +1,7 @@
-"""Instrumentação em nível de subrotina: tempo (perf_counter) e memória (tracemalloc).
+"""Profiling por subrotina: tempo (perf_counter) e pico de memória (tracemalloc).
 
-Uso:
-    prof = Profiler(trace_memory=True)
-    with prof.section("mst"):
-        ...
-    prof.as_dict()  ->  {'time_mst': s, 'mem_peak_mst': bytes, ...}
-
-Observações importantes para a análise:
-* tracemalloc instrumenta TODA alocação do Python (inclusive os buffers do
-  NumPy), por isso deixa o código bem mais lento. Os experimentos medem tempo
-  em execuções SEM tracemalloc e memória numa execução separada COM ele.
-* `mem_peak_<secao>` é o pico de memória alocada DURANTE a seção, acima do
-  que já estava alocado quando ela começou (memória "extra" da subrotina).
-* Seções podem ser aninhadas: antes de zerar o pico (reset_peak) para a seção
-  interna, o pico corrente é repassado às seções externas abertas.
-* Em modo memória, cada seção começa com gc.collect(): sem isso, objetos
-  mortos de seções anteriores seriam liberados durante a seção medida e
-  "descontariam" as alocações dela (o Hierholzer aparecia com 8x menos
-  memória depois do blossom do que depois do matching guloso).
+mem_peak_<seção> é o pico alocado durante a seção acima do que havia ao entrar.
+Tempo e memória devem ser medidos em execuções separadas (tracemalloc é lento).
 """
 from __future__ import annotations
 
@@ -39,8 +23,7 @@ class Profiler:
     @contextmanager
     def section(self, name: str):
         if self.trace_memory:
-            # lixo de seções anteriores (ex.: o grafo do NetworkX do matching)
-            # seria liberado DENTRO desta seção e esconderia as alocações dela
+            # sem isso, lixo de seções anteriores liberado aqui esconde alocações
             gc.collect()
             cur, peak = tracemalloc.get_traced_memory()
             for frame in self._stack:          # preserva pico das seções externas
@@ -66,7 +49,6 @@ class Profiler:
 
 
 class NullProfiler(Profiler):
-    """Profiler que não mede nada (evita `if prof:` espalhado pelo código)."""
 
     @contextmanager
     def section(self, name: str):

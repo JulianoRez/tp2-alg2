@@ -1,4 +1,4 @@
-"""Funções e configurações comuns da análise (figuras, tabelas LaTeX, ajustes)."""
+"""Funções comuns da análise: figuras, tabelas LaTeX e ajustes de curvas."""
 from __future__ import annotations
 
 import json
@@ -13,7 +13,7 @@ import pandas as pd  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 RES = RAIZ / "results"
-ANALISE = RES / "analise"            # CSVs para a planilha
+ANALISE = RES / "analise"
 FIG = RAIZ / "relatorio" / "figuras"
 TAB = RAIZ / "relatorio" / "tabelas"
 for d in (ANALISE, FIG, TAB):
@@ -32,7 +32,7 @@ plt.rcParams.update({
     "font.family": "serif",
 })
 
-# números citados no texto do artigo (gerados, nunca digitados à mão)
+# números citados no artigo
 _NUMEROS: dict = {}
 
 
@@ -58,7 +58,7 @@ def salva_fig(fig, nome: str):
 
 
 def fmt_num(x, casas: int = 2) -> str:
-    """Número no padrão brasileiro para o LaTeX (vírgula decimal)."""
+    """Número com vírgula decimal para o LaTeX."""
     if x is None or (isinstance(x, float) and not np.isfinite(x)):
         return "--"
     s = f"{x:,.{casas}f}"
@@ -67,7 +67,7 @@ def fmt_num(x, casas: int = 2) -> str:
 
 def tabela_latex(df: pd.DataFrame, nome: str, legenda: str, rotulo: str,
                  alinhamento: str | None = None, pequena: bool = True):
-    """Escreve relatorio/tabelas/<nome>.tex (booktabs). Células já formatadas."""
+    """Escreve relatorio/tabelas/<nome>.tex (booktabs)."""
     alinhamento = alinhamento or "l" + "r" * (df.shape[1] - 1)
     linhas = [r"\begin{table}[htb]", r"\centering",
               r"\caption{" + legenda + "}", r"\label{" + rotulo + "}"]
@@ -81,10 +81,6 @@ def tabela_latex(df: pd.DataFrame, nome: str, legenda: str, rotulo: str,
     linhas += [r"\bottomrule", r"\end{tabular}", r"\end{adjustbox}", r"\end{table}"]
     (TAB / f"{nome}.tex").write_text("\n".join(linhas) + "\n")
 
-
-# --------------------------------------------------------------------------
-# Ajustes de curvas
-# --------------------------------------------------------------------------
 
 MODELOS = {
     "n": lambda n: n,
@@ -119,16 +115,15 @@ def ajuste_potencia(n, y) -> dict:
 
 
 def ajuste_modelo(n, y, modelo: str) -> dict:
-    """y = c0 + c1 f(n), c1 >= 0, mínimos quadrados em escala linear (o que o
-    enunciado pede: R² e RMSE na unidade original). Também devolve o R² em
-    log do modelo sem intercepto (forma da curva)."""
+    """y = c0 + c1 f(n) (c1 >= 0) em escala linear, com R² e RMSE; também a forma
+    pura log y = log c + log f, para comparar modelos.
+    """
     from scipy.optimize import nnls
     n, y = np.asarray(n, float), np.asarray(y, float)
     f = MODELOS[modelo](n)
     A = np.column_stack([np.ones_like(f), f])
     coef, _ = nnls(A, y)
     yhat = A @ coef
-    # forma pura (sem intercepto) em log: log y = log c + log f
     ok = y > 0
     logc = np.mean(np.log(y[ok]) - np.log(f[ok]))
     zhat = logc + np.log(f[ok])

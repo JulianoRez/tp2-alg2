@@ -1,17 +1,7 @@
-"""Leitura de instâncias da TSPLIB e construção da matriz de distâncias.
+"""Leitura de instâncias da TSPLIB (EUC_2D, CEIL_2D, ATT, GEO, EXPLICIT).
 
-Referência do formato: G. Reinelt, "TSPLIB 95" (documentação oficial).
-
-Suporta os tipos EUC_2D, CEIL_2D, ATT, GEO e EXPLICIT (com todos os
-EDGE_WEIGHT_FORMAT usuais). Na faixa N <= 75 a TSPLIB tem só três instâncias
-EUC_2D (eil51, berlin52, st70); as demais citadas no enunciado (ulysses16,
-gr24, fri26, bays29, swiss42, att48) são GEO, EXPLICIT ou ATT. Por isso o
-parser segue a definição oficial de cada tipo: assim o custo de um tour bate
-exatamente com o ótimo publicado pela TSPLIB, o que serve de validação.
-
-Toda distância da TSPLIB é inteira. A matriz é guardada em float64 (inteiros
-são representados exatamente até 2^53) porque o limite inferior Held-Karp do
-Branch-and-Bound soma penalidades reais a ela.
+A matriz de distâncias é float64 (inteiros exatos até 2^53) porque o limite
+de Held-Karp soma penalidades reais a ela.
 """
 from __future__ import annotations
 
@@ -21,8 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-# Ótimos publicados pela TSPLIB (página de soluções do TSPLIB95). Servem para
-# (1) validar o B&B e (2) calcular o gap quando o B&B estoura o tempo limite.
+# ótimos publicados pela TSPLIB95
 KNOWN_OPTIMA = {
     "burma14": 3323, "ulysses16": 6859, "gr17": 2085, "gr21": 2707,
     "ulysses22": 7013, "gr24": 1272, "fri26": 937, "bayg29": 1610,
@@ -37,8 +26,8 @@ class Instance:
     name: str
     n: int
     edge_weight_type: str
-    D: np.ndarray            # matriz n x n de distâncias inteiras (diagonal 0)
-    coords: np.ndarray       # n x 2: coordenadas usadas só para geometria
+    D: np.ndarray
+    coords: np.ndarray       # só para as features geométricas
     coords_source: str       # 'node_coord' | 'display_data' | 'mds'
     comment: str = ""
 
@@ -51,14 +40,9 @@ class Instance:
 
 
 def tour_cost(D: np.ndarray, tour) -> int:
-    """Custo do ciclo hamiltoniano `tour` (lista de vértices, sem repetir o 1º)."""
     t = np.asarray(tour)
     return int(round(D[t, np.roll(t, -1)].sum()))
 
-
-# --------------------------------------------------------------------------
-# Leitura do arquivo
-# --------------------------------------------------------------------------
 
 def _read_text(path: Path) -> str:
     if path.suffix == ".gz":
@@ -68,7 +52,6 @@ def _read_text(path: Path) -> str:
 
 
 def _parse(path: Path) -> tuple[dict, dict]:
-    """Separa o arquivo em cabeçalho (CHAVE: valor) e seções (lista de tokens)."""
     header: dict[str, str] = {}
     sections: dict[str, list[str]] = {}
     current = None
@@ -102,16 +85,11 @@ def _is_number(tok: str) -> bool:
 
 
 def _coords_from_section(tokens: list[str], n: int) -> np.ndarray:
-    """Seções de coordenadas têm linhas 'id x y'; devolve array n x 2."""
     arr = np.array(tokens, dtype=float).reshape(-1, 3)
     out = np.zeros((n, 2))
     out[arr[:, 0].astype(int) - 1] = arr[:, 1:]
     return out
 
-
-# --------------------------------------------------------------------------
-# Funções de distância (definições da documentação TSPLIB95)
-# --------------------------------------------------------------------------
 
 def _nint(x: np.ndarray) -> np.ndarray:
     return np.floor(x + 0.5)
@@ -134,7 +112,6 @@ def dist_ceil_2d(c: np.ndarray) -> np.ndarray:
 
 
 def dist_att(c: np.ndarray) -> np.ndarray:
-    """Distância 'pseudo-euclidiana' (att48, att532)."""
     dx, dy = _pairwise_deltas(c)
     r = np.sqrt((dx * dx + dy * dy) / 10.0)
     t = _nint(r)
@@ -142,12 +119,8 @@ def dist_att(c: np.ndarray) -> np.ndarray:
 
 
 def _geo_radians(c: np.ndarray) -> np.ndarray:
-    """Converte coordenadas GEO (formato GRAUS.MINUTOS) para radianos.
-
-    A parte inteira é truncada (o "nint" da documentação, na prática, é
-    truncamento: é assim que os ótimos publicados foram calculados, conferido
-    em tests/test_all.py com ulysses16/ulysses22/burma14).
-    """
+    """GRAUS.MINUTOS -> radianos. A parte inteira é truncada (não arredondada):
+    é assim que os ótimos publicados foram calculados."""
     pi = 3.141592
     deg = np.trunc(c)
     minutes = c - deg
@@ -168,12 +141,10 @@ def dist_geo(c: np.ndarray) -> np.ndarray:
 
 
 def _explicit_matrix(n: int, fmt: str, w: list[float]) -> np.ndarray:
-    """Monta a matriz completa a partir de EDGE_WEIGHT_SECTION."""
     fmt = fmt.upper()
     if fmt == "FULL_MATRIX":
         return np.array(w[: n * n], dtype=float).reshape(n, n)
-    # Para matrizes simétricas, ler "coluna" de um triângulo equivale a ler
-    # "linha" do triângulo oposto.
+    # matriz simétrica: coluna de um triângulo = linha do triângulo oposto
     ranges = {
         "UPPER_ROW": lambda i: range(i + 1, n),
         "LOWER_COL": lambda i: range(i + 1, n),
@@ -196,16 +167,8 @@ def _explicit_matrix(n: int, fmt: str, w: list[float]) -> np.ndarray:
     return full
 
 
-# --------------------------------------------------------------------------
-# Coordenadas para as features geométricas
-# --------------------------------------------------------------------------
-
 def geo_to_plane(c: np.ndarray) -> np.ndarray:
-    """GEO (lat, lon em GRAUS.MINUTOS) -> plano por projeção equiretangular.
-
-    Usada só para geometria (fecho convexo, bounding box, entropia); a
-    distância do problema continua sendo a GEO oficial.
-    """
+    """Projeção equiretangular de coordenadas GEO (só para as features)."""
     rad = _geo_radians(c)
     lat, lon = rad[:, 0], rad[:, 1]
     x = lon * np.cos(lat.mean())
@@ -214,12 +177,8 @@ def geo_to_plane(c: np.ndarray) -> np.ndarray:
 
 
 def classical_mds(D: np.ndarray, dim: int = 2) -> tuple[np.ndarray, float]:
-    """MDS clássico (Torgerson): coordenadas 2D cujas distâncias aproximam D.
-
-    Usado nas instâncias EXPLICIT sem coordenadas (gr17, gr21, gr24, fri26,
-    swiss42...). Devolve as coordenadas e a fração da "energia" explicada
-    pelas 2 dimensões (1.0 = D é exatamente euclidiana em 2D).
-    """
+    """MDS clássico: coordenadas 2D para instâncias EXPLICIT sem coordenadas.
+    Devolve também a fração da variância explicada pelas 2 dimensões."""
     n = D.shape[0]
     J = np.eye(n) - np.ones((n, n)) / n
     B = -0.5 * J @ (D ** 2) @ J
@@ -231,10 +190,6 @@ def classical_mds(D: np.ndarray, dim: int = 2) -> tuple[np.ndarray, float]:
     quality = float(pos.sum() / np.clip(vals, 0, None).sum())
     return coords, quality
 
-
-# --------------------------------------------------------------------------
-# API pública
-# --------------------------------------------------------------------------
 
 def instance_name(path: Path) -> str:
     name = path.name
@@ -249,7 +204,7 @@ def load_instance(path: str | Path) -> Instance:
     header, sections = _parse(path)
     n = int(header["DIMENSION"])
     ewt = header.get("EDGE_WEIGHT_TYPE", "").upper()
-    # alguns arquivos (ulysses16/22) trazem NAME com extensão: normalizamos
+    # ulysses16/22 trazem NAME com extensão
     name = instance_name(Path(header.get("NAME", path.name).strip()))
 
     node = sections.get("NODE_COORD_SECTION")
@@ -288,7 +243,6 @@ def load_instance(path: str | Path) -> Instance:
 
 
 def load_tour(path: str | Path) -> list[int]:
-    """Lê um arquivo .opt.tour (vértices numerados a partir de 1)."""
     _, sections = _parse(Path(path))
     tour = []
     for tok in sections["TOUR_SECTION"]:

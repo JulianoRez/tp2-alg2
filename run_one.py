@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-"""Executa UMA configuração (instância x algoritmo) e imprime um JSON por linha.
+"""Executa uma configuração (instância x algoritmo) e imprime o resultado em JSON.
 
-Exemplos:
-    python run_one.py gr17 --algo christofides --reps 5 --trace-memory
+    python run_one.py st70 --algo christofides --reps 5 --trace-memory
     python run_one.py att48 --algo bnb --start hull --bound hk --child-order index
-    python run_one.py bays29 --algo bnb --start trivial --bound onetree --time-limit 60
-
-Cada execução de B&B roda num processo separado (é o que run_experiments.py
-faz), então `peak_rss_kb` (pico de memória residente do processo, via
-getrusage) mede só aquela execução.
 """
 from __future__ import annotations
 
@@ -35,7 +29,6 @@ ALGOS = HEURISTICS + ("bnb",)
 
 
 def build_tour(name: str, inst, prof: Profiler, matching: str = "blossom") -> list[int]:
-    """Roda uma heurística/aproximação e devolve o tour."""
     D = inst.D
     if name == "trivial":
         with prof.section("trivial"):
@@ -62,13 +55,8 @@ def peak_rss_kb() -> int:
 
 
 def run_heuristic(args, inst) -> dict:
-    """1 execução de aquecimento (descartada) + `reps` execuções cronometradas
-    (sem tracemalloc) + 1 opcional com tracemalloc.
-
-    O aquecimento existe porque a 1ª chamada paga custos que não são do
-    algoritmo (importações tardias do NetworkX, caches da CPU, alocador).
-    As coletas do GC são contadas só DENTRO da janela cronometrada: o
-    gc.collect() que limpa o lixo antes de cada repetição fica de fora.
+    """1 execução de aquecimento + `reps` cronometradas + 1 opcional sob tracemalloc.
+    As coletas do GC são contadas só dentro da janela cronometrada.
     """
     totals, sections, tour, gc_auto = [], {}, None, 0
     build_tour(args.algo, inst, Profiler(), args.matching)      # aquecimento
@@ -90,7 +78,7 @@ def run_heuristic(args, inst) -> dict:
         "time_total": statistics.median(totals),
         "time_total_min": min(totals),
         "time_total_all": totals,
-        "gc_collections": gc_auto / args.reps,      # coletas automáticas por execução
+        "gc_collections": gc_auto / args.reps,
     }
     for k, v in sections.items():
         out[f"time_{k}"] = statistics.median(v)
@@ -106,17 +94,8 @@ def run_heuristic(args, inst) -> dict:
 
 
 def run_bnb(args, inst) -> dict:
-    """Heurística de warm-start + Branch-and-Bound, tudo dentro do tempo limite.
-
-    Mede tempo de relógio (perf_counter) e tempo de CPU do processo
-    (process_time): com vários processos em paralelo, a diferença entre os
-    dois mostra quanto a contenção da máquina pesou na medição.
-
-    Com --trace-memory, faz uma 2ª execução SEPARADA sob tracemalloc (que
-    deixa o Python bem mais lento), limitada a --mem-time-limit segundos:
-    a memória da DFS é O(n^2) e atinge o pico logo no 1º mergulho, então uma
-    execução curta já mede o pico. O RSS do processo não serve aqui: os
-    ~170 MiB do interpretador + NumPy/SciPy/NetworkX escondem os KiB da DFS.
+    """Warm-start + B&B dentro do limite de tempo. Mede tempo de relógio e de CPU
+    (a diferença mostra a contenção da máquina).
     """
     gc.collect()
     gc0 = gc_collections()
@@ -139,7 +118,10 @@ def run_bnb(args, inst) -> dict:
 
 
 def trace_bnb_memory(args, inst, start_tour) -> dict:
-    """Pico de memória (tracemalloc) do limite na raiz e do B&B inteiro."""
+    """Pico de memória (tracemalloc) do limite na raiz e de um B&B curto: a DFS
+    atinge o pico O(n^2) logo no 1º mergulho. O RSS não serve: o interpretador e
+    as bibliotecas ocupam ~170 MiB e escondem os KiB da DFS.
+    """
     from tsp.bnb import held_karp_bound, one_tree
     gc.collect()
     tracemalloc.start()
@@ -212,7 +194,7 @@ def main(argv=None) -> dict:
     cost = record.get("cost")
     record["gap"] = (cost - inst.known_opt) / inst.known_opt if cost and inst.known_opt else None
     record["peak_rss_kb"] = peak_rss_kb()
-    record["peak_rss_before_run_kb"] = rss_before   # baseline: interpretador + imports
+    record["peak_rss_before_run_kb"] = rss_before
     record["python"] = platform.python_version()
     record["numpy"] = np.__version__
     print(json.dumps(record))

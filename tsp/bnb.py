@@ -1,48 +1,13 @@
 """Branch-and-Bound exato para o TSP simétrico.
 
-Espaço de busca
----------------
-Cada nó da árvore é um caminho parcial que começa no vértice 0:
-    P = (0, v1, ..., vk),   R = vértices ainda não visitados.
-Os filhos de P são P + (c) para cada c em R. Uma folha (|R| = 1) fecha o tour.
-Fixar o vértice inicial elimina as n rotações equivalentes de cada tour.
-
-Limites inferiores (opção `bound`)
----------------------------------
-Todos são calculados para TODOS os filhos de um nó de uma vez (vetorizado).
-
-* 'twomin'  (limite clássico do livro do Levitin): cada vértice contribui com
-  as duas arestas mais baratas incidentes a ele (ou as arestas já fixadas no
-  caminho). Como cada aresta do tour é contada por suas duas pontas,
-      custo(tour) >= (soma das contribuições) / 2.
-  Custo O(m) por filho, mas é fraco -> árvore enorme.
-
-* 'onetree' (limite de árvore geradora): o que falta para fechar o tour é um
-  caminho hamiltoniano  c -> r1 -> ... -> rj -> 0  passando por todo R' = R - {c}.
-  O trecho r1..rj é uma árvore geradora de R', então
-      LB = custo(P) + d(vk, c) + MST(R') + min d(c, R') + min d(R', 0).
-  Custo O(m^2) por filho (uma MST), mas bem mais forte.
-
-* 'hk' (Held-Karp): o mesmo limite 'onetree', porém sobre os custos
-  penalizados  w(i,j) = d(i,j) + pi_i + pi_j.  Em QUALQUER tour todo vértice
-  tem grau 2, então  w(tour) = d(tour) + 2*sum(pi)  -> qualquer limite inferior
-  para w vale para d subtraindo a constante 2*sum(pi). As penalidades pi são
-  calculadas UMA vez na raiz por otimização por subgradiente da relaxação
-  Lagrangiana da 1-árvore (Held & Karp, 1970/1971): elas "empurram" a 1-árvore
-  mínima a ter grau 2 em todo vértice, deixando o limite muito mais apertado.
-
-Como os custos da TSPLIB são inteiros, um nó só pode melhorar a incumbente se
-ceil(LB) <= UB - 1; então podamos quando ceil(LB) >= UB.
-
-Estratégias de busca (opção `search`)
-------------------------------------
-* 'dfs'  (padrão): busca em profundidade recursiva; filhos visitados em ordem
-  crescente de limite inferior (`child_order='bound'`). Memória O(n^2)
-  (pilha de recursão + vetor de limites por nível). Depende fortemente da
-  qualidade do limite superior inicial (warm-start).
-* 'best': best-first com heap pelo limite inferior. Expande o menor número de
-  nós, mas guarda TODOS os nós abertos -> memória pode crescer
-  exponencialmente. Há um teto de nós abertos (`max_open`).
+Um nó é um caminho parcial (0, v1, ..., vk); fixar o vértice 0 elimina as
+rotações. Limites inferiores, calculados para todos os filhos de uma vez:
+  twomin   duas menores arestas de cada vértice, somadas e divididas por 2;
+  onetree  custo(P) + d(vk, c) + MST(R - c) + min d(c, R - c) + min d(R - c, 0);
+  hk       o mesmo sobre w_ij = d_ij + pi_i + pi_j (Held-Karp), menos 2 sum(pi),
+           com pi otimizado uma vez na raiz por subgradiente.
+Custos inteiros: poda quando ceil(LB) >= UB. Busca em profundidade (memória
+O(n^2)) ou best-first (memória exponencial, com teto de nós abertos).
 """
 from __future__ import annotations
 
@@ -58,9 +23,9 @@ from .mst import mst_without_each_vertex, prim, tree_degrees
 
 
 def _cost(D: np.ndarray, tour) -> float:
-    """Custo do tour em float (sem arredondar: vale também para D não inteira)."""
     t = np.asarray(tour)
     return float(D[t, np.roll(t, -1)].sum())
+
 
 BOUNDS = ("twomin", "onetree", "hk")
 SEARCHES = ("dfs", "best")
@@ -68,21 +33,13 @@ CHILD_ORDERS = ("bound", "index")
 
 
 class _Stop(Exception):
-    """Interrompe a busca (tempo ou memória esgotados) preservando estatísticas."""
-
     def __init__(self, reason: str):
         super().__init__(reason)
         self.reason = reason
 
 
-# --------------------------------------------------------------------------
-# Limite de Held-Karp na raiz (1-árvore + subgradiente)
-# --------------------------------------------------------------------------
-
 def one_tree(W: np.ndarray) -> tuple[float, np.ndarray]:
-    """1-árvore mínima com vértice especial 0: MST(V - {0}) + 2 arestas mais
-    baratas de 0. Todo tour é uma 1-árvore, então peso(1-árvore) <= OPT.
-    Devolve (peso, graus)."""
+    """1-árvore mínima com vértice especial 0. Devolve (peso, graus)."""
     n = W.shape[0]
     parent, w = prim(W[1:, 1:])
     deg = np.zeros(n, dtype=np.int64)
@@ -96,20 +53,11 @@ def one_tree(W: np.ndarray) -> tuple[float, np.ndarray]:
 
 def held_karp_bound(D: np.ndarray, ub: float | None = None,
                     max_iter: int | None = None) -> tuple[np.ndarray, float, int]:
-    """Otimização por subgradiente das penalidades pi (Held-Karp).
+    """Penalidades pi de Held-Karp por subgradiente (passo de Polyak).
 
-    L(pi) = peso_w(1-árvore mínima) - 2*sum(pi) é limite inferior para todo pi.
-    Subgradiente: g_v = grau_v - 2 (grau na 1-árvore). Atualização:
-        pi <- pi + t * g,    t = lam * (UB - L(pi)) / ||g||^2   (passo de Polyak)
-    lam começa em 2 e cai pela metade quando L não melhora por `patience`
-    iterações. Vértice com grau > 2 fica mais caro (pi sobe), folha fica mais
-    barata (pi desce).
-
-    O UB aqui só calibra o tamanho do passo. Por padrão usamos o vizinho mais
-    próximo, calculado internamente da MESMA forma para todas as estratégias
-    de warm-start -> o limite (e portanto a poda) não depende da estratégia;
-    as diferenças entre estratégias vêm só da incumbente inicial do B&B.
-
+    g = grau - 2; pi += lam (UB - L) g / |g|^2; lam cai pela metade após
+    `patience` iterações sem melhora. O UB só calibra o passo e é sempre o do
+    vizinho mais próximo, para o limite não depender do warm-start.
     Devolve (pi, melhor L, iterações).
     """
     n = D.shape[0]
@@ -137,14 +85,10 @@ def held_karp_bound(D: np.ndarray, ub: float | None = None,
         g = deg - 2
         norm2 = float(g @ g)
         if norm2 == 0 or lam < 1e-4 or best_L >= ub - 1e-9:
-            break   # 1-árvore virou tour (ótimo), passo minúsculo, ou provou UB
+            break   # 1-árvore virou tour, passo minúsculo ou L alcançou o UB
         pi = pi + lam * (ub - L) / norm2 * g
     return best_pi, float(best_L), it
 
-
-# --------------------------------------------------------------------------
-# Branch-and-Bound
-# --------------------------------------------------------------------------
 
 class BranchAndBound:
     def __init__(self, D: np.ndarray, bound: str = "hk", search: str = "dfs",
@@ -160,20 +104,20 @@ class BranchAndBound:
         self.Dinf = self.D.copy()
         np.fill_diagonal(self.Dinf, np.inf)
 
-    # ---------------------------------------------------------------- poda
     def _prunable(self, lb: float) -> bool:
         if self.integral:
+            # custos inteiros: só vale continuar se existir tour <= UB - 1;
+            # a tolerância absorve o erro de ponto flutuante das penalidades pi
             return math.ceil(lb - 1e-6) >= self.ub
         return lb >= self.ub - 1e-9
 
-    # ------------------------------------------------- pré-processamento
     def _prepare_bound(self):
         n = self.n
         self.pi = np.zeros(n)
         self.hk_iterations = 0
         if self.bound == "twomin":
             two = np.partition(self.Dinf, 1, axis=1)[:, :2]
-            self.s2 = two.sum(axis=1)               # 2 menores arestas de cada vértice
+            self.s2 = two.sum(axis=1)
             self.root_lb = float(self.s2.sum() / 2)
             self.W = self.Dinf
             self.const = 0.0
@@ -186,24 +130,23 @@ class BranchAndBound:
         self.W = self.Dinf + self.pi[:, None] + self.pi[None, :]
         self.const = 2.0 * float(self.pi.sum())
 
-    # ------------------------------------- limites de todos os filhos
     def _child_bounds(self, last: int, R: np.ndarray, cost_d: float,
                       cost_w: float) -> np.ndarray:
-        """LB de cada filho P + (c), c em R (vetor alinhado com R). |R| >= 2."""
+        """LB de cada filho P + (c), c em R (|R| >= 2)."""
         t0 = perf_counter()
         m = R.size
-        # aresta (r, 0) que fecha o tour: menor e 2ª menor para "excluir c"
+        # aresta de volta ao 0: a 2ª menor substitui a menor quando ela é a do próprio c
         if self.bound == "twomin":
             to0 = self.D[R, 0]
-            S = self.Dinf[R[:, None], R]       # submatriz m x m (mais barato que np.ix_)
+            S = self.Dinf[R[:, None], R]
         else:
             to0 = self.W[R, 0]
             S = self.W[R[:, None], R]
         a = int(np.argmin(to0))
         second = np.partition(to0, 1)[1]
         conn0 = np.full(m, to0[a])
-        conn0[a] = second                   # se c é o mais próximo de 0, usa o 2º
-        near_c = S.min(axis=1)              # aresta mais barata de c para R - {c}
+        conn0[a] = second
+        near_c = S.min(axis=1)
 
         if self.bound == "twomin":
             # interior do caminho conta 2x as arestas fixadas; pontas (0 e c)
@@ -217,7 +160,6 @@ class BranchAndBound:
         self.time_bound += perf_counter() - t0
         return lb
 
-    # ---------------------------------------------------- incumbente
     def _update_incumbent(self, total: float, tour: list[int]):
         if total < self.ub - 1e-9:
             self.ub = total
@@ -229,11 +171,10 @@ class BranchAndBound:
         if perf_counter() > self.deadline:
             raise _Stop("timeout")
 
-    # ------------------------------------------------------------ DFS
     def _dfs(self, last: int, depth: int, cost_d: float, cost_w: float):
         self._check_time()
         R = np.flatnonzero(~self.visited)
-        if R.size == 1:                     # folha: fechar o tour é forçado
+        if R.size == 1:
             c = int(R[0])
             self.leaves += 1
             self._update_incumbent(cost_d + self.D[last, c] + self.D[c, 0],
@@ -249,7 +190,7 @@ class BranchAndBound:
         for pos, k in enumerate(order):
             if self._prunable(lb[k]):
                 if self.child_order == "bound":
-                    # ordenado: todos os irmãos restantes também são podados
+                    # filhos ordenados: os irmãos seguintes também caem
                     self.pruned += m - pos
                     self.pruned_by_depth[depth + 1] += m - pos
                     return
@@ -263,16 +204,8 @@ class BranchAndBound:
             self.path.pop()
             self.visited[c] = False
 
-    # ----------------------------------------------------- best-first
     def _best_first(self):
-        """Best-first: sempre expande o nó aberto de menor LB.
-
-        Cada nó aberto guarda o caminho como LISTA ENCADEADA imutável
-        (vértice, nó_pai): criar um filho custa O(1) e os prefixos comuns são
-        compartilhados. A 1ª versão guardava uma tupla com o caminho inteiro
-        (cópia O(profundidade) por filho) e escalares np.float64; a auditoria
-        mediu ~340 bytes por nó aberto contra ~260 do código bruto.
-        """
+        """Best-first; o caminho de cada nó aberto é uma lista encadeada (c, pai)."""
         n = self.n
         tie = itertools.count()
         # chave: (LB, -profundidade, contador) -> empate favorece o nó mais fundo
@@ -293,7 +226,7 @@ class BranchAndBound:
                 self._check_time()
                 visited[:] = False
                 v = node
-                while v is not None:                 # percorre o caminho: O(profundidade)
+                while v is not None:
                     visited[v[0]] = True
                     v = v[1]
                 R = np.flatnonzero(~visited)
@@ -314,7 +247,7 @@ class BranchAndBound:
                 lbs = self._child_bounds(last, R, cost_d, cost_w).tolist()
                 self.generated += R.size
                 Dl, Wl = self.D[last], self.W[last]
-                usa_w = self.bound != "twomin"      # no twomin W = D: não guarda cost_w
+                usa_w = self.bound != "twomin"      # no twomin W = D
                 for k, c in enumerate(R.tolist()):
                     if self._prunable(lbs[k]):
                         self.pruned += 1
@@ -330,7 +263,6 @@ class BranchAndBound:
         finally:
             self.open_at_end = len(heap)
 
-    # ---------------------------------------------------------- solve
     def solve(self, initial_tour: list[int] | None = None) -> dict:
         n = self.n
         self.t_start = perf_counter()
@@ -360,7 +292,7 @@ class BranchAndBound:
                 if self.best_tour is None:
                     self._update_incumbent(_cost(self.D, list(range(n))), list(range(n)))
             elif self._prunable(self.root_lb):
-                self.pruned += 1            # a raiz já prova que a incumbente é ótima
+                self.pruned += 1            # a raiz já prova a incumbente
                 self.pruned_by_depth[0] += 1
             elif self.search == "dfs":
                 self.visited = np.zeros(n, dtype=bool)
@@ -374,7 +306,7 @@ class BranchAndBound:
         now = perf_counter()
         last_improvement = self.ub_history[-1][0] if self.ub_updates else 0.0
 
-        def out(x):                         # inteiro se as distâncias são inteiras
+        def out(x):
             if math.isinf(x):
                 return None
             return int(round(x)) if self.integral else float(x)

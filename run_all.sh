@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-# Roda todos os experimentos do trabalho (versão 2, depois das correções).
-#   setsid nohup ./run_all.sh > results/run_all.log 2>&1 &
-# Retomável: rodar de novo pula o que já terminou (runs.jsonl, synthetic.jsonl)
-# e os CSVs que já existem.
-#
-# Os B&B com 1-árvore (150 execuções, quase metade estoura 30 min) NÃO são
-# refeitos: vêm do lote v1 (results/v1, 8 processos em paralelo). O código da
-# DFS não mudou desde então, e a contagem de nós de quem terminou é
-# determinística.
+# Todos os experimentos (retomável):  setsid nohup ./run_all.sh > results/run_all.log 2>&1 &
+# Os B&B com 1-árvore vêm do lote results/v1 e não são refeitos aqui.
 set -u
 cd "$(dirname "$0")"
 source .venv/bin/activate
@@ -15,7 +8,7 @@ export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 mkdir -p results
 echo "início: $(date)"
 
-# --- Fase A: medições sensíveis a tempo, UMA de cada vez, máquina parada ----
+# medições sensíveis a tempo: uma de cada vez, com a máquina parada
 python run_experiments.py --no-bnb --workers 1 > results/heuristics.log 2>&1
 echo "heurísticas: $(date)"
 [ -f results/scaling.csv ] || python profile_scaling.py > results/scaling.log 2>&1
@@ -25,15 +18,14 @@ echo "escala (GC desligado): $(date)"
 [ -f results/audit.csv ] || python audit_naive.py > results/audit.log 2>&1
 echo "auditoria: $(date)"
 
-# --- Fase B1: B&B Held-Karp na TSPLIB, 4 processos, sem mais nada rodando ---
+# B&B Held-Karp na TSPLIB (4 processos), com e sem GC
 python run_experiments.py --no-heuristics --configs hk:bound hk:index --workers 4 \
     --trace-memory > results/bnb_hk.log 2>&1
 echo "B&B Held-Karp: $(date)"
-# mesmo B&B com o GC desligado, nas mesmas condições (o GC distorce o B&B?)
 python run_experiments.py --no-heuristics --configs hk:bound --no-gc --workers 4 > results/bnb_nogc.log 2>&1
 echo "B&B sem GC: $(date)"
 
-# --- Fase B2: o que só depende de contagem de nós / custo, em paralelo -----
+# o que só depende de nós e custos, em paralelo
 escala_bnb() {  # escala_bnb <limite> <tamanhos> <sementes> <sufixo>
     local out=results/scaling_bnb_$1_$4.csv
     [ -f "$out" ] || python profile_scaling.py --sizes --bnb-sizes $2 --seeds $3 \

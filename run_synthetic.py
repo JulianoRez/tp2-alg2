@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
-"""Experimento de sensibilidade em instâncias sintéticas (tsp/synthetic.py).
-
-Para cada instância (família x N x semente):
-  1. extrai as mesmas features das instâncias da TSPLIB (tsp/features.py);
-  2. roda as heurísticas e aproximativos (custo e tempo);
-  3. acha o ÓTIMO EXATO com o B&B (Held-Karp, DFS, filhos por limite,
-     warm-start = melhor entre fecho convexo e Christofides) -> gap exato;
-  4. mede a dificuldade do B&B para cada limite inferior: gap na raiz
-     (2 menores arestas, 1-árvore, Held-Karp) e nós que o B&B com 1-árvore
-     precisa para PROVAR o ótimo quando já recebe o tour ótimo como incumbente
-     (isola a força do limite da qualidade do warm-start; só para N <= 20).
-
-Saída: results/synthetic.jsonl (retomável) e results/synthetic.csv.
+"""Sensibilidade em instâncias sintéticas (tsp/synthetic.py): features, gaps das
+heurísticas em relação ao ótimo exato (B&B Held-Karp) e gaps dos limites na
+raiz. Saída: results/synthetic.jsonl (retomável) e results/synthetic.csv.
 
     python run_synthetic.py --workers 8
-    python run_synthetic.py --sizes 20 30 --seeds 0 1 --families uniform circle
 """
 from __future__ import annotations
 
@@ -86,8 +75,7 @@ def run_instance(family: str, n: int, seed: int, time_limit: float,
     for b in ("twomin", "onetree", "hk"):
         rec[f"root_gap_{b}"] = (opt - rec[f"{b}_root_lb"]) / opt
 
-    # esforço para PROVAR o ótimo com a 1-árvore (incumbente = tour ótimo).
-    # Acima de N ~ 20 quase tudo estoura o limite, então só roda em N pequeno.
+    # nós que a 1-árvore precisa para PROVAR o ótimo já conhecido (só N pequeno)
     if n <= prove_max_n:
         prove = BranchAndBound(inst.D, bound="onetree", search="dfs", child_order="bound",
                                time_limit=prove_limit).solve(res["tour"])
@@ -105,8 +93,7 @@ def _refeatures(rec: dict) -> dict:
 
 
 def refeatures(workers: int):
-    """Recalcula só as features (ex.: depois de corrigir uma feature), sem
-    rodar de novo heurísticas e B&B."""
+    """Recalcula só as features das instâncias já rodadas."""
     rows = [json.loads(line) for line in OUT.open() if line.strip()]
     with ProcessPoolExecutor(workers) as ex:
         rows = list(ex.map(_refeatures, rows, chunksize=4))

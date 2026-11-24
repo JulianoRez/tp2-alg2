@@ -1,30 +1,16 @@
 #!/usr/bin/env python3
-"""Profiling por subrotina em instâncias aleatórias de tamanho crescente.
-
-Com a TSPLIB na faixa 14 <= N <= 76, curvas como n^2 e n^3 ficam quase
-indistinguíveis. Para a regressão de complexidade empírica, este script roda
-os algoritmos polinomiais em instâncias uniformes aleatórias (pontos em
-[0, 10000]^2, distância EUC_2D da TSPLIB) com N bem maior, e opcionalmente o
-B&B em N pequeno (crescimento exponencial).
-
-Saída: results/scaling.csv, uma linha por (algoritmo, N, semente), com
-time_<subrotina> (mediana de --reps execuções sem tracemalloc) e
-mem_peak_<subrotina> (execução separada com tracemalloc), custo, peso da MST
-(limite inferior: custo/MST <= 2 no TATT) e coletas do GC.
+"""Profiling por subrotina em instâncias uniformes de N crescente (regressão de
+complexidade) e, opcionalmente, o B&B em N pequeno.
 
     python profile_scaling.py
-    python profile_scaling.py --sizes 100 200 400 800 --seeds 0 1 2 --no-gc
-    python profile_scaling.py --sizes --bnb-sizes 10 15 20 25 30 35 40 --bnb-time 300
-
-Cada medição de tempo tem 1 execução de aquecimento descartada; as coletas
-do GC são contadas só dentro da janela cronometrada.
+    python profile_scaling.py --no-gc --out results/scaling_nogc.csv
+    python profile_scaling.py --sizes --bnb-sizes 10 15 20 --bnb-bound hk --out results/scaling_bnb_hk.csv
 """
 from __future__ import annotations
 
 import os
 
-# 1 thread por biblioteca numérica: a medição é de um algoritmo sequencial e
-# threads extras do BLAS só adicionariam ruído (precisa vir antes do NumPy).
+# BLAS com 1 thread (antes de importar o NumPy): só adicionaria ruído
 for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
     os.environ.setdefault(_v, "1")
 
@@ -52,7 +38,6 @@ def random_instance(n: int, seed: int):
 
 
 def algorithms(P, D):
-    """nome -> função(prof) que devolve um tour."""
     def sec(name, fn):
         def run(prof):
             with prof.section(name):
@@ -77,8 +62,9 @@ def gc_count() -> int:
 
 
 def profile_one(fn, reps: int) -> dict:
-    """1 execução de aquecimento + `reps` cronometradas (mediana) + 1 com
-    tracemalloc. Coletas do GC contadas só dentro da janela cronometrada."""
+    """1 execução de aquecimento + `reps` cronometradas (mediana) + 1 sob tracemalloc.
+    Coletas do GC contadas só dentro da janela cronometrada.
+    """
     times, cpu, sections, tour, gc_auto = [], [], {}, None, 0
     fn(Profiler())                                   # aquecimento (descartado)
     for _ in range(reps):
@@ -155,8 +141,7 @@ def main():
             res = BranchAndBound(D, bound=args.bnb_bound, time_limit=args.bnb_time).solve(tour0)
             cpu = process_time() - c0
             gcs = gc_count() - gc0
-            # memória: execução separada e curta sob tracemalloc (a DFS atinge
-            # o pico O(n^2) no 1º mergulho); o limite na raiz é medido à parte
+            # memória: execução curta sob tracemalloc (a DFS atinge o pico cedo)
             gc.collect()
             tracemalloc.start()
             if args.bnb_bound == "hk":

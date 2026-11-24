@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
-"""Auditoria: código "bruto" (tsp/naive.py) x código refatorado, com profiling.
+"""Auditoria: código ingênuo (tsp/naive.py) x refatorado -> results/audit.csv.
 
-Gera results/audit.csv com três comparações:
-  1. bnb      — B&B bruto (best-first + cópias + limite em Python puro) x
-                variantes refatoradas (mesmo limite 'twomin' em best-first e
-                DFS; 1-árvore e Held-Karp em DFS). Todas recebem o mesmo
-                warm-start (vizinho mais próximo) e o mesmo teto de nós
-                abertos; os best-first também rodam com o GC desligado.
-  2. approx   — TATT e Christofides via NetworkX completo x versões NumPy.
-  3. children_mst — MST de cada filho: m Prims sequenciais x versão em lote x
-                atalho das folhas (MST única + Prim em lote só nos internos).
-
-Tempo: execução sem tracemalloc. Memória: execução separada com tracemalloc
-(pico de alocação durante a chamada).
-
-    python audit_naive.py                     # padrão (alguns minutos)
-    python audit_naive.py --bnb-time 30 --bnb-instances burma14 gr17
+Compara a MST de cada filho do B&B, TATT/Christofides e o B&B (mesmo
+warm-start e mesmo teto de nós abertos para todas as variantes).
 """
 from __future__ import annotations
 
@@ -38,13 +25,10 @@ from tsp.tsplib import find_instance, load_instance, tour_cost
 
 
 def measure(fn, reps: int = 1, gc_on: bool = True, warmup: bool = True):
-    """(resultado cronometrado, mediana do tempo, pico de memória em bytes,
-    resultado da execução com tracemalloc).
+    """(resultado, mediana do tempo, pico de memória, resultado sob tracemalloc).
 
-    A memória vem de uma execução SEPARADA sob tracemalloc, que é bem mais
-    lenta: num B&B que estoura o tempo, essa execução para numa árvore menor.
-    Por isso a auditoria do B&B compara bytes POR NÓ ABERTO, usando o pico e
-    o max_open da MESMA execução com tracemalloc.
+    A memória vem de uma execução separada e mais lenta; num B&B que estoura o
+    tempo ela para numa árvore menor, por isso se compara bytes por nó aberto.
     """
     times, out = [], None
     if warmup:
@@ -86,7 +70,7 @@ def audit_bnb(names, time_limit, rows):
             "dfs_hk": (lambda: BranchAndBound(D, "hk", "dfs", time_limit=time_limit).solve(ub_tour), True),
         }
         for variant, (fn, gc_on) in variants.items():
-            res, t, mem, tr = measure(fn, gc_on=gc_on, warmup=False)   # B&B: execução longa
+            res, t, mem, tr = measure(fn, gc_on=gc_on, warmup=False)
             mo = tr.get("max_open") or 0
             rows.append({"experiment": "bnb", "case": name, "n": inst.n, "variant": variant,
                          "gc_enabled": gc_on, "status": res["status"], "cost": res["cost"],
