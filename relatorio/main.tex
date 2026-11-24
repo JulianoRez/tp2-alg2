@@ -1,0 +1,48 @@
+\documentclass[12pt]{article}
+
+% Modelo oficial da SBC para artigos (sbc-template.sty e sbc.bst, baixados de
+% https://www.sbc.org.br/wp-content/uploads/2024/07/modelosparapublicaodeartigos.zip).
+% O modelo já carrega geometry, times, caption e titlesec.
+% (o babel precisa vir ANTES do sbc-template: com o hyperref carregado, a
+% ordem inversa quebra a compilação no \begin{document})
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{sbc-template}
+
+\usepackage{graphicx,url}
+\usepackage{booktabs}
+\usepackage{adjustbox}
+\usepackage{amsmath,amssymb}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figuras/}}
+\sloppy
+
+\title{Análise Empírica e Otimização para o Caixeiro Viajante:\\
+Branch-and-Bound, Twice-around-the-tree e Christofides}
+
+\author{Juliano Gomes de Rezende\inst{1}}
+
+\address{Departamento de Ciência da Computação\\
+  Universidade Federal de Minas Gerais (UFMG) -- Belo Horizonte -- MG -- Brasil
+  \email{julianorezende09@gmail.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\input{secoes/0_resumo}
+
+\input{secoes/1_introducao}
+\input{secoes/2_implementacao}
+\input{secoes/3_experimentos}
+\input{secoes/4_conclusoes}
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+
+\end{document}
