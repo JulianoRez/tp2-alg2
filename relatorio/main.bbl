@@ -1,0 +1,90 @@
+\begin{thebibliography}{}
+
+\bibitem[Andrew 1979]{andrew1979}
+Andrew, A.~M. (1979).
+\newblock Another efficient algorithm for convex hulls in two dimensions.
+\newblock {\em Information Processing Letters}, 9(5):216--219.
+
+\bibitem[Applegate et~al. 2006]{applegate2006}
+Applegate, D.~L., Bixby, R.~E., Chv{\'a}tal, V., and Cook, W.~J. (2006).
+\newblock {\em The Traveling Salesman Problem: A Computational Study}.
+\newblock Princeton University Press.
+
+\bibitem[Breiman 2001]{breiman2001}
+Breiman, L. (2001).
+\newblock Random forests.
+\newblock {\em Machine Learning}, 45(1):5--32.
+
+\bibitem[Christofides 1976]{christofides1976}
+Christofides, N. (1976).
+\newblock Worst-case analysis of a new heuristic for the travelling salesman
+  problem.
+\newblock Technical Report 388, Graduate School of Industrial Administration,
+  Carnegie Mellon University.
+
+\bibitem[Clark and Evans 1954]{clarkevans1954}
+Clark, P.~J. and Evans, F.~C. (1954).
+\newblock Distance to nearest neighbor as a measure of spatial relationships in
+  populations.
+\newblock {\em Ecology}, 35(4):445--453.
+
+\bibitem[Donnelly 1978]{donnelly1978}
+Donnelly, K.~P. (1978).
+\newblock Simulations to determine the variance and edge effect of total
+  nearest neighbour distance.
+\newblock In Hodder, I., editor, {\em Simulation Methods in Archaeology}, pages
+  91--95. Cambridge University Press.
+
+\bibitem[Edmonds 1965]{edmonds1965}
+Edmonds, J. (1965).
+\newblock Paths, trees, and flowers.
+\newblock {\em Canadian Journal of Mathematics}, 17:449--467.
+
+\bibitem[Galil 1986]{galil1986}
+Galil, Z. (1986).
+\newblock Efficient algorithms for finding maximum matching in graphs.
+\newblock {\em ACM Computing Surveys}, 18(1):23--38.
+
+\bibitem[Hagberg et~al. 2008]{hagberg2008}
+Hagberg, A.~A., Schult, D.~A., and Swart, P.~J. (2008).
+\newblock Exploring network structure, dynamics, and function using {NetworkX}.
+\newblock In {\em Proceedings of the 7th Python in Science Conference (SciPy
+  2008)}, pages 11--15.
+
+\bibitem[Held and Karp 1970]{heldkarp1970}
+Held, M. and Karp, R.~M. (1970).
+\newblock The traveling-salesman problem and minimum spanning trees.
+\newblock {\em Operations Research}, 18(6):1138--1162.
+
+\bibitem[Held and Karp 1971]{heldkarp1971}
+Held, M. and Karp, R.~M. (1971).
+\newblock The traveling-salesman problem and minimum spanning trees: Part {II}.
+\newblock {\em Mathematical Programming}, 1(1):6--25.
+
+\bibitem[Levitin 2012]{levitin2012}
+Levitin, A. (2012).
+\newblock {\em Introduction to the Design and Analysis of Algorithms}.
+\newblock Pearson, 3 edition.
+
+\bibitem[Pedregosa et~al. 2011]{pedregosa2011}
+Pedregosa, F. et~al. (2011).
+\newblock Scikit-learn: Machine learning in {P}ython.
+\newblock {\em Journal of Machine Learning Research}, 12:2825--2830.
+
+\bibitem[Reinelt 1991]{reinelt1991}
+Reinelt, G. (1991).
+\newblock {TSPLIB}---a traveling salesman problem library.
+\newblock {\em ORSA Journal on Computing}, 3(4):376--384.
+
+\bibitem[Rosenkrantz et~al. 1977]{rosenkrantz1977}
+Rosenkrantz, D.~J., Stearns, R.~E., and Lewis, P.~M. (1977).
+\newblock An analysis of several heuristics for the traveling salesman problem.
+\newblock {\em SIAM Journal on Computing}, 6(3):563--581.
+
+\bibitem[Smith-Miles and Lopes 2012]{smithmiles2012}
+Smith-Miles, K. and Lopes, L. (2012).
+\newblock Measuring instance difficulty for combinatorial optimization
+  problems.
+\newblock {\em Computers \& Operations Research}, 39(5):875--889.
+
+\end{thebibliography}
